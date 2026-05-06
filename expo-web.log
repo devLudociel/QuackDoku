@@ -1,0 +1,12 @@
+Starting project at C:\Users\Usuario\Desktop\QuackDoku\quackdoku
+Starting Metro Bundler
+Waiting on http://localhost:8082
+Logs for your project will appear below.
+Web Bundled 752ms index.ts (1238 modules)
+ LOG  [web] Logs will appear in the browser console
+Web .\index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 49ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console
+Web .\index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+Web Bundled 44ms index.ts (1 module)
+ LOG  [web] Logs will appear in the browser console

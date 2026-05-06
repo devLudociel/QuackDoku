@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { Colors, Spacing, Radius, Shadow, Fonts } from '../../constants/theme';
 import { getLevelProgress, useUserStore } from '../../stores/userStore';
 import { ALL_CASES } from '../../constants/cases';
+import GameAsset from '../../components/ui/GameAsset';
 
 export default function HomeScreen() {
   const { username, level, xp, coins, streakDays, casesCompleted } =
@@ -29,7 +30,7 @@ export default function HomeScreen() {
           </View>
           <View style={styles.headerRight}>
             <View style={styles.coinsChip}>
-              <Text style={styles.coinIcon}>🪙</Text>
+              <GameAsset name="coin" size={22} />
               <Text style={styles.coinAmount}>{coins}</Text>
             </View>
           </View>
@@ -54,7 +55,11 @@ export default function HomeScreen() {
             { label: 'Monedas', value: coins, icon: '🪙' },
           ].map((stat) => (
             <View key={stat.label} style={styles.statCard}>
-              <Text style={styles.statIcon}>{stat.icon}</Text>
+              {stat.label === 'Monedas' ? (
+                <GameAsset name="coin" size={26} style={styles.statAsset} />
+              ) : (
+                <Text style={styles.statIcon}>{stat.icon}</Text>
+              )}
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>
             </View>
@@ -67,7 +72,7 @@ export default function HomeScreen() {
           onPress={() => router.push('/(tabs)/cases')}
         >
           <View style={styles.heroContent}>
-            <Text style={styles.heroEmoji}>🔍</Text>
+            <GameAsset name="clue" size={46} />
             <View>
               <Text style={styles.heroTitle}>Nueva Partida</Text>
               <Text style={styles.heroSubtitle}>
@@ -96,13 +101,14 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.dailyReward}>
-            <Text style={styles.rewardText}>+150🪙</Text>
+            <Text style={styles.rewardText}>+150</Text>
+            <GameAsset name="coin" size={18} />
           </View>
         </Pressable>
 
         {/* Logo footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>🦆 QUACKDOKU</Text>
+          <GameAsset name="logo" width={220} height={82} style={styles.footerLogo} />
           <Text style={styles.footerSub}>Sudoku × Misterio × Patos</Text>
         </View>
       </ScrollView>
@@ -147,9 +153,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     gap: 4,
-  },
-  coinIcon: {
-    fontSize: 16,
   },
   coinAmount: {
     fontWeight: '700',
@@ -205,6 +208,9 @@ const styles = StyleSheet.create({
     fontSize: 20,
     marginBottom: 2,
   },
+  statAsset: {
+    marginBottom: 2,
+  },
   statValue: {
     fontSize: Fonts.h3,
     fontWeight: '800',
@@ -229,9 +235,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-  },
-  heroEmoji: {
-    fontSize: 36,
   },
   heroTitle: {
     fontSize: Fonts.h3,
@@ -287,6 +290,9 @@ const styles = StyleSheet.create({
     color: Colors.gray,
   },
   dailyReward: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
     backgroundColor: Colors.yellowSoft,
     borderRadius: Radius.badge,
     paddingHorizontal: Spacing.sm,
@@ -301,11 +307,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xl,
   },
-  footerText: {
-    fontSize: Fonts.h3,
-    fontWeight: '900',
-    color: Colors.yellow,
-    letterSpacing: 2,
+  footerLogo: {
+    marginBottom: 2,
   },
   footerSub: {
     fontSize: Fonts.xs,

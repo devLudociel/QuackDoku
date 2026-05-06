@@ -19,6 +19,7 @@ import DuckSelector from '../../components/board/DuckSelector';
 import HeartsDisplay from '../../components/ui/HeartsDisplay';
 import Button from '../../components/ui/Button';
 import DuckAvatar from '../../components/ui/DuckAvatar';
+import GameAsset from '../../components/ui/GameAsset';
 import { DUCK_MAP } from '../../constants/ducks';
 import {
   getBoardPlayMode,
@@ -347,7 +348,10 @@ export default function GameScreen() {
 
         <View style={styles.hudRight}>
           <Text style={styles.timer}>{formatTime(elapsedSeconds)}</Text>
-          <Text style={styles.cluesHud}>💡{clues}</Text>
+          <View style={styles.cluesHud}>
+            <GameAsset name="clue" size={18} />
+            <Text style={styles.cluesHudText}>{clues}</Text>
+          </View>
         </View>
       </View>
 
@@ -431,7 +435,7 @@ export default function GameScreen() {
       <Modal visible={phase === 'gameover'} transparent animationType="fade">
         <View style={styles.overlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.gameOverEmoji}>💔</Text>
+            <GameAsset name="heartEmpty" size={64} />
             <Text style={styles.modalTitle}>Se acabaron las vidas</Text>
             <Text style={styles.gameOverSub}>¿Quieres continuar?</Text>
             <Button label="Continuar (🪙 100)" onPress={handleContinue} fullWidth style={styles.modalBtn} />
@@ -472,9 +476,19 @@ export default function GameScreen() {
             {culpritDuck && <DuckAvatar duck={culpritDuck} size={96} style={styles.culpritAvatar} />}
 
             <View style={styles.rewardsRow}>
-              <Text style={styles.rewardChip}>+{gameCase.rewards.coins}🪙</Text>
-              <Text style={styles.rewardChip}>+{gameCase.rewards.xp}⭐</Text>
-              {errors === 0 && <Text style={styles.rewardChip}>+30🪙 perfecto</Text>}
+              <View style={styles.rewardChip}>
+                <Text style={styles.rewardText}>+{gameCase.rewards.coins}</Text>
+                <GameAsset name="coin" size={18} />
+              </View>
+              <View style={styles.rewardChip}>
+                <Text style={styles.rewardText}>+{gameCase.rewards.xp} XP</Text>
+              </View>
+              {errors === 0 && (
+                <View style={styles.rewardChip}>
+                  <Text style={styles.rewardText}>+30 perfecto</Text>
+                  <GameAsset name="coin" size={18} />
+                </View>
+              )}
             </View>
 
             <Button
@@ -539,8 +553,14 @@ const styles = StyleSheet.create({
     color: Colors.blackPremium,
   },
   cluesHud: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  cluesHudText: {
     fontSize: Fonts.small,
     color: Colors.gray,
+    fontWeight: '700',
   },
   boardContainer: {
     flex: 1,
@@ -628,9 +648,6 @@ const styles = StyleSheet.create({
     width: '100%',
     marginTop: Spacing.xs,
   },
-  gameOverEmoji: {
-    fontSize: 52,
-  },
   gameOverSub: {
     color: Colors.gray,
     fontSize: Fonts.small,
@@ -679,10 +696,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rewardChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     backgroundColor: 'rgba(255,204,0,0.2)',
     borderRadius: Radius.badge,
     paddingHorizontal: Spacing.sm,
     paddingVertical: 4,
+  },
+  rewardText: {
     color: Colors.yellow,
     fontWeight: '700',
     fontSize: Fonts.small,

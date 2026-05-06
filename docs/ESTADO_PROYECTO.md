@@ -31,12 +31,20 @@ Assets reales conectados:
 
 - `assets/duck_tophat.png`
 - `assets/duck_plum.png`
+- `assets/logo.png`
+- `assets/coin.png`
+- `assets/clue.png`
+- `assets/heart_full.png`
+- `assets/heart_empty.png`
 
 Estos assets se muestran usando:
 
 - `components/ui/DuckAvatar.tsx`
+- `components/ui/GameAsset.tsx`
 
 `DuckAvatar` pinta una imagen PNG si el pato tiene asset. Si todavia no tiene imagen, usa el emoji como fallback.
+
+`GameAsset` pinta los assets globales de interfaz: logo, monedas, pistas y corazones.
 
 Pantallas donde ya se usa `DuckAvatar`:
 
@@ -44,6 +52,18 @@ Pantallas donde ya se usa `DuckAvatar`:
 - Selector inferior de sospechosos.
 - Pantalla de detalle del caso.
 - Pantalla de personajes.
+- Perfil.
+- Modal de caso resuelto.
+
+Pantallas donde ya se usa `GameAsset`:
+
+- Home.
+- Lista de casos.
+- Detalle del caso.
+- HUD del juego.
+- Display de vidas.
+- Selector de sospechosos.
+- Tienda.
 - Perfil.
 - Modal de caso resuelto.
 
@@ -216,6 +236,7 @@ Archivos habituales:
 - `assets/`
 - `constants/ducks.ts`
 - `components/ui/DuckAvatar.tsx`
+- `components/ui/GameAsset.tsx`
 - `components/board/RoomCell.tsx`
 - `components/board/DuckSelector.tsx`
 - `app/(tabs)/characters.tsx`
@@ -299,6 +320,7 @@ Antes de modificar codigo, leer estos archivos:
 Si la tarea es visual, revisar tambien:
 
 - `components/ui/DuckAvatar.tsx`
+- `components/ui/GameAsset.tsx`
 - `constants/ducks.ts`
 - `app/(tabs)/characters.tsx`
 - `app/case/[caseId].tsx`

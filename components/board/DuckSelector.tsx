@@ -14,6 +14,7 @@ import { DUCK_MAP } from '../../constants/ducks';
 import { BoardState, countDuckPlacements } from '../../lib/boardValidator';
 import type { SuspectClue } from '../../constants/cases';
 import DuckAvatar from '../ui/DuckAvatar';
+import GameAsset from '../ui/GameAsset';
 
 interface DuckSelectorProps {
   duckIds: string[];
@@ -162,7 +163,7 @@ export default function DuckSelector({
           disabled={cluesLeft <= 0}
           style={[styles.controlBtn, cluesLeft <= 0 && styles.disabled]}
         >
-          <Text style={styles.controlIcon}>💡</Text>
+          <GameAsset name="clue" size={24} />
           <Text style={styles.controlLabel}>Pista</Text>
         </Pressable>
 
@@ -171,7 +172,7 @@ export default function DuckSelector({
           disabled={cluesLeft <= 0}
           style={[styles.controlBtn, cluesLeft <= 0 && styles.disabled]}
         >
-          <Text style={styles.controlIcon}>🔍</Text>
+          <GameAsset name="clue" size={24} />
           <Text style={styles.controlLabel}>Revelar ({cluesLeft})</Text>
         </Pressable>
 

@@ -9,7 +9,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, Shadow, Fonts } from '../../constants/theme';
-import { useUserStore } from '../../stores/userStore';
+import GameAsset from '../../components/ui/GameAsset';
+import type { AppAssetName } from '../../constants/assets';
 
 interface ShopItem {
   id: string;
@@ -17,20 +18,21 @@ interface ShopItem {
   description: string;
   price: string;
   emoji: string;
+  asset?: AppAssetName;
   coins?: number;
   clues?: number;
 }
 
 const COIN_PACKS: ShopItem[] = [
-  { id: 'coins_200', label: '200 Monedas', description: 'Bolsita de oro', price: '$0.99', emoji: '👛', coins: 200 },
-  { id: 'coins_600', label: '600 Monedas', description: 'Saco de monedas', price: '$2.49', emoji: '💰', coins: 600 },
-  { id: 'coins_1500', label: '1,500 Monedas', description: 'Cofre del detective', price: '$4.99', emoji: '💎', coins: 1500 },
+  { id: 'coins_200', label: '200 Monedas', description: 'Bolsita de oro', price: '$0.99', emoji: '👛', asset: 'coin', coins: 200 },
+  { id: 'coins_600', label: '600 Monedas', description: 'Saco de monedas', price: '$2.49', emoji: '💰', asset: 'coin', coins: 600 },
+  { id: 'coins_1500', label: '1,500 Monedas', description: 'Cofre del detective', price: '$4.99', emoji: '💎', asset: 'coin', coins: 1500 },
 ];
 
 const HINT_PACKS: ShopItem[] = [
-  { id: 'hints_3', label: '3 Pistas', description: 'Mini lupa', price: '$0.99', emoji: '🔍', clues: 3 },
-  { id: 'hints_10', label: '10 Pistas', description: 'Lupa detective', price: '$1.99', emoji: '🔎', clues: 10 },
-  { id: 'hints_25', label: '25 Pistas', description: 'Maletín de pistas', price: '$3.99', emoji: '🧳', clues: 25 },
+  { id: 'hints_3', label: '3 Pistas', description: 'Mini lupa', price: '$0.99', emoji: '🔍', asset: 'clue', clues: 3 },
+  { id: 'hints_10', label: '10 Pistas', description: 'Lupa detective', price: '$1.99', emoji: '🔎', asset: 'clue', clues: 10 },
+  { id: 'hints_25', label: '25 Pistas', description: 'Maletín de pistas', price: '$3.99', emoji: '🧳', asset: 'clue', clues: 25 },
 ];
 
 function ShopCard({ item }: { item: ShopItem }) {
@@ -39,7 +41,11 @@ function ShopCard({ item }: { item: ShopItem }) {
       style={styles.shopCard}
       onPress={() => Alert.alert('Próximamente', 'Las compras estarán disponibles pronto 🚀')}
     >
-      <Text style={styles.shopEmoji}>{item.emoji}</Text>
+      {item.asset ? (
+        <GameAsset name={item.asset} size={42} />
+      ) : (
+        <Text style={styles.shopEmoji}>{item.emoji}</Text>
+      )}
       <View style={styles.shopInfo}>
         <Text style={styles.shopLabel}>{item.label}</Text>
         <Text style={styles.shopDesc}>{item.description}</Text>
@@ -65,7 +71,7 @@ export default function ShopScreen() {
             <Text style={styles.subEmoji}>🕵️</Text>
             <View>
               <Text style={styles.subTitle}>Detective Plus</Text>
-              <Text style={styles.subDesc}>Sin anuncios · +500🪙/mes · +10💡/mes</Text>
+              <Text style={styles.subDesc}>Sin anuncios · 500 monedas/mes · 10 pistas/mes</Text>
             </View>
           </View>
           <Pressable
@@ -77,12 +83,18 @@ export default function ShopScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🪙 Monedas</Text>
+          <View style={styles.sectionTitleRow}>
+            <GameAsset name="coin" size={28} />
+            <Text style={styles.sectionTitle}>Monedas</Text>
+          </View>
           {COIN_PACKS.map((item) => <ShopCard key={item.id} item={item} />)}
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>💡 Pistas</Text>
+          <View style={styles.sectionTitleRow}>
+            <GameAsset name="clue" size={28} />
+            <Text style={styles.sectionTitle}>Pistas</Text>
+          </View>
           {HINT_PACKS.map((item) => <ShopCard key={item.id} item={item} />)}
         </View>
 
@@ -93,7 +105,10 @@ export default function ShopScreen() {
             onPress={() => Alert.alert('Anuncio', 'Ver anuncio para obtener 3 pistas (próximamente)')}
           >
             <Text style={styles.freeEmoji}>📺</Text>
-            <Text style={styles.freeLabel}>Ver anuncio → +3 💡</Text>
+            <View style={styles.freeReward}>
+              <Text style={styles.freeLabel}>Ver anuncio -> +3</Text>
+              <GameAsset name="clue" size={22} />
+            </View>
           </Pressable>
         </View>
       </ScrollView>
@@ -166,6 +181,12 @@ const styles = StyleSheet.create({
     color: Colors.blackPremium,
     marginBottom: Spacing.xs,
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
   shopCard: {
     backgroundColor: Colors.white,
     borderRadius: Radius.card,
@@ -230,5 +251,10 @@ const styles = StyleSheet.create({
     fontSize: Fonts.body,
     fontWeight: '600',
     color: Colors.blackPremium,
+  },
+  freeReward: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
 });

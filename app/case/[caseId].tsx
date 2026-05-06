@@ -13,6 +13,7 @@ import { CASE_MAP } from '../../constants/cases';
 import { DUCK_MAP } from '../../constants/ducks';
 import Button from '../../components/ui/Button';
 import DuckAvatar from '../../components/ui/DuckAvatar';
+import GameAsset from '../../components/ui/GameAsset';
 
 export default function CaseDetailScreen() {
   const { caseId } = useLocalSearchParams<{ caseId: string }>();
@@ -62,7 +63,10 @@ export default function CaseDetailScreen() {
             </View>
             <View style={styles.metaChip}>
               <Text style={styles.metaLabel}>Premio</Text>
-              <Text style={styles.metaValue}>+{gameCase.rewards.coins}🪙</Text>
+              <View style={styles.metaIconValue}>
+                <Text style={styles.metaValue}>+{gameCase.rewards.coins}</Text>
+                <GameAsset name="coin" size={18} />
+              </View>
             </View>
           </View>
 
@@ -172,6 +176,11 @@ const styles = StyleSheet.create({
     fontSize: Fonts.body,
     fontWeight: '700',
     color: Colors.blackPremium,
+  },
+  metaIconValue: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
   },
   card: {
     backgroundColor: Colors.white,

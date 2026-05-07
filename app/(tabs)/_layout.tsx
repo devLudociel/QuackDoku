@@ -1,10 +1,14 @@
 import { Tabs } from 'expo-router';
 import { Colors } from '../../constants/theme';
-import { Platform, Text } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>;
+  return (
+    <View style={[styles.iconWrap, focused && styles.iconWrapActive]}>
+      <Text style={[styles.iconText, !focused && styles.iconMuted]}>{emoji}</Text>
+    </View>
+  );
 }
 
 export default function TabLayout() {
@@ -19,15 +23,15 @@ export default function TabLayout() {
           backgroundColor: Colors.white,
           borderTopColor: Colors.grayLight,
           borderTopWidth: 1,
-          height: 62 + bottomInset,
-          paddingBottom: bottomInset + 6,
-          paddingTop: 6,
+          height: 66 + bottomInset,
+          paddingBottom: bottomInset + 7,
+          paddingTop: 7,
         },
         tabBarActiveTintColor: Colors.blackPremium,
-        tabBarInactiveTintColor: Colors.gray,
+        tabBarInactiveTintColor: Colors.grayMuted,
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: '600',
+          fontWeight: '700',
         },
         tabBarItemStyle: {
           paddingVertical: 2,
@@ -38,37 +42,58 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="⌂" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="cases"
         options={{
           title: 'Casos',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📁" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="◈" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="characters"
         options={{
           title: 'Patos',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🦆" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="♟" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="shop"
         options={{
           title: 'Tienda',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🛒" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="⚑" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="🕵️" focused={focused} />,
+          tabBarIcon: ({ focused }) => <TabIcon emoji="◎" focused={focused} />,
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrap: {
+    width: 36,
+    height: 30,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapActive: {
+    backgroundColor: Colors.yellow,
+  },
+  iconText: {
+    fontSize: 18,
+    color: Colors.blackPremium,
+    fontWeight: '900',
+  },
+  iconMuted: {
+    color: Colors.grayMuted,
+  },
+});

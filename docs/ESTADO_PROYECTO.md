@@ -1,6 +1,6 @@
 # Estado del Proyecto QuackDoku
 
-Fecha del checkpoint: 2026-05-06
+Fecha del checkpoint: 2026-05-07
 
 Este documento resume donde va el proyecto para que otro desarrollador, o su Codex, pueda entrar al codigo sin depender del historial de chat.
 
@@ -24,6 +24,12 @@ El flujo actual ya no usa arrastrar y soltar. Esto se cambio porque en movil el 
 - Hay boton `Acusar` para enviar la solucion cuando todos los sospechosos estan colocados.
 - Si la solucion es incorrecta, se pierde una vida.
 - Si la solucion es correcta, se completa el caso.
+- Hay una primera implementacion local de `Caso Diario`:
+  - ruta `app/daily/index.tsx` con countdown a medianoche UTC.
+  - ruta `app/daily/result.tsx` con tarjeta compartible y ranking simulado.
+  - seed deterministico por fecha en `lib/daily.ts`.
+  - guardado en memoria del resultado diario en `stores/dailyStore.ts`.
+  - el juego reconoce `?daily=1` y al completar registra share grid, estrellas, tiempo y errores.
 
 ## Assets actuales
 
@@ -106,6 +112,7 @@ Contiene validaciones importantes:
 ### Estado del juego
 
 - `stores/gameStore.ts`
+- `stores/dailyStore.ts`
 
 Controla:
 
@@ -119,6 +126,7 @@ Controla:
 - vidas
 - pistas
 - fase del juego
+- historial de movimientos para generar el share grid del caso diario
 
 ### Datos de casos
 
@@ -155,6 +163,8 @@ Estos archivos controlan la experiencia principal del juego.
 ### Pantallas
 
 - `app/game/[caseId].tsx`: pantalla del juego.
+- `app/daily/index.tsx`: entrada del caso diario.
+- `app/daily/result.tsx`: resultado compartible y ranking diario local.
 - `app/case/[caseId].tsx`: pantalla de detalle del caso.
 - `app/(tabs)/cases.tsx`: lista de casos.
 - `app/(tabs)/characters.tsx`: coleccion de personajes.
@@ -284,6 +294,9 @@ npx tsc --noEmit
 - Pulir pistas por sospechoso para que no sean demasiado obvias.
 - Revisar textos largos en tarjetas de sospechosos en movil pequeno.
 - Crear mas casos jugables.
+- Conectar Caso Diario a backend real cuando exista Fastify/Prisma/Redis.
+- Persistir resultado diario en storage o backend; ahora vive en memoria de Zustand.
+- Reemplazar ranking diario simulado por endpoint real.
 - Guardar progreso real del jugador.
 - Revisar tienda y economia.
 - Agregar sonido y feedback visual.

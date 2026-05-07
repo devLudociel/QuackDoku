@@ -13,7 +13,9 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Colors, Spacing, Fonts, Radius, Shadow } from '../../constants/theme';
 import { CASE_MAP } from '../../constants/cases';
 import { useGameStore } from '../../stores/gameStore';
+import { useDailyStore } from '../../stores/dailyStore';
 import { useUserStore } from '../../stores/userStore';
+import { buildDailyShareGrid, getDailyCaseForDate } from '../../lib/daily';
 import MansionBoard from '../../components/board/MansionBoard';
 import DuckSelector from '../../components/board/DuckSelector';
 import HeartsDisplay from '../../components/ui/HeartsDisplay';
@@ -29,8 +31,9 @@ import {
 } from '../../lib/boardValidator';
 
 export default function GameScreen() {
-  const { caseId } = useLocalSearchParams<{ caseId: string }>();
+  const { caseId, daily } = useLocalSearchParams<{ caseId: string; daily?: string }>();
   const gameCase = CASE_MAP[caseId ?? ''];
+  const isDailyRun = daily === '1';
 
   const {
     board,
@@ -46,6 +49,7 @@ export default function GameScreen() {
     notesMode,
     xMode,
     history,
+    moveHistory,
     startGame,
     selectCell,
     placeDuck,
@@ -65,6 +69,7 @@ export default function GameScreen() {
   } = useGameStore();
 
   const { completeCaseReward, spendCoins } = useUserStore();
+  const completeDailyCase = useDailyStore((state) => state.completeDailyCase);
 
   const [errorCells, setErrorCells] = useState<Set<string>>(new Set());
   const [conflictCells, setConflictCells] = useState<Set<string>>(new Set());
@@ -116,15 +121,42 @@ export default function GameScreen() {
     if (phase === 'completed' && gameCase && rewardedCaseRef.current !== gameCase.case_id) {
       rewardedCaseRef.current = gameCase.case_id;
       const isPerfect = errors === 0;
+      const rewardCoins = isDailyRun ? 150 : gameCase.rewards.coins;
+      const rewardXp = isDailyRun ? 75 : gameCase.rewards.xp;
       completeCaseReward(
-        gameCase.rewards.coins,
-        gameCase.rewards.xp,
+        rewardCoins,
+        rewardXp,
         gameCase.rewards.clues,
         isPerfect,
         elapsedSeconds
       );
+
+      if (isDailyRun) {
+        const dailyCase = getDailyCaseForDate();
+        completeDailyCase({
+          date: dailyCase.date,
+          caseId: gameCase.case_id,
+          caseName: gameCase.title,
+          dayNumber: dailyCase.dayNumber,
+          stars,
+          timeSeconds: elapsedSeconds,
+          errors,
+          shareGrid: buildDailyShareGrid(gameCase.board, boardState, moveHistory),
+        });
+      }
     }
-  }, [phase, gameCase?.case_id, errors, elapsedSeconds, completeCaseReward]);
+  }, [
+    phase,
+    gameCase?.case_id,
+    errors,
+    elapsedSeconds,
+    completeCaseReward,
+    isDailyRun,
+    completeDailyCase,
+    stars,
+    boardState,
+    moveHistory,
+  ]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -477,11 +509,11 @@ export default function GameScreen() {
 
             <View style={styles.rewardsRow}>
               <View style={styles.rewardChip}>
-                <Text style={styles.rewardText}>+{gameCase.rewards.coins}</Text>
+                <Text style={styles.rewardText}>+{isDailyRun ? 150 : gameCase.rewards.coins}</Text>
                 <GameAsset name="coin" size={18} />
               </View>
               <View style={styles.rewardChip}>
-                <Text style={styles.rewardText}>+{gameCase.rewards.xp} XP</Text>
+                <Text style={styles.rewardText}>+{isDailyRun ? 75 : gameCase.rewards.xp} XP</Text>
               </View>
               {errors === 0 && (
                 <View style={styles.rewardChip}>
@@ -492,8 +524,8 @@ export default function GameScreen() {
             </View>
 
             <Button
-              label="Volver a casos"
-              onPress={() => { resetGame(); router.replace('/(tabs)/cases'); }}
+              label={isDailyRun ? 'Ver resultado diario' : 'Volver a casos'}
+              onPress={() => { resetGame(); router.replace(isDailyRun ? '/daily/result' : '/(tabs)/cases'); }}
               fullWidth
               style={styles.modalBtn}
             />

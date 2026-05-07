@@ -55,7 +55,8 @@ export default function Button({
 
 const styles = StyleSheet.create({
   base: {
-    paddingVertical: 14,
+    minHeight: 50,
+    paddingVertical: 13,
     paddingHorizontal: Spacing.lg,
     borderRadius: Radius.button,
     alignItems: 'center',
@@ -66,7 +67,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.yellow,
   },
   secondary: {
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.surface,
     borderWidth: 1.5,
     borderColor: Colors.grayLight,
   },
@@ -86,9 +87,9 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   baseText: {
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0,
   },
   primaryText: {
     color: Colors.blackPremium,

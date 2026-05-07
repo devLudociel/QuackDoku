@@ -1,24 +1,32 @@
 export const Colors = {
   // Primary palette
-  yellow: '#FFCC00',
-  yellowSoft: '#FFF4CC',
-  yellowPremium: '#F2B705',
-  yellowDark: '#E6A800',
+  yellow: '#FFC700',
+  yellowSoft: '#FFF4BF',
+  yellowPremium: '#FFB800',
+  yellowDark: '#D99A00',
 
   // Backgrounds
-  background: '#FFF8E6',
+  background: '#F7F7F3',
   white: '#FFFFFF',
+  ink: '#080913',
+  navy: '#11112A',
+  navyCard: '#1B1B3D',
+  navyMuted: '#2A2A52',
+  surface: '#F1F1EE',
 
   // Text
-  black: '#1A1A2E',
-  blackPremium: '#121212',
-  gray: '#5A5A5A',
-  grayLight: '#CCCCCC',
-  grayMuted: '#9E9E9E',
+  black: '#10101F',
+  blackPremium: '#10101C',
+  gray: '#777783',
+  grayLight: '#E7E7E2',
+  grayMuted: '#A2A2AD',
+  whiteMuted: '#D8D8E8',
 
   // Semantic
-  success: '#4CAF50',
-  error: '#FF4D4D',
+  success: '#20B85A',
+  successSoft: '#DDF8E8',
+  error: '#E84855',
+  errorSoft: '#FFE3E7',
   warning: '#FF8C00',
 
   // Rarity
@@ -60,10 +68,11 @@ export const Fonts = {
 };
 
 export const Radius = {
-  card: 20,
-  button: 18,
+  card: 18,
+  button: 24,
   cell: 6,
-  badge: 12,
+  badge: 14,
+  pill: 999,
 };
 
 export const Spacing = {
@@ -78,16 +87,23 @@ export const Spacing = {
 export const Shadow = {
   card: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowRadius: 18,
+    elevation: 4,
   },
   button: {
-    shadowColor: '#FFCC00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
+    shadowColor: '#FFC700',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
     elevation: 4,
+  },
+  darkCard: {
+    shadowColor: '#050508',
+    shadowOffset: { width: 0, height: 14 },
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    elevation: 6,
   },
 };

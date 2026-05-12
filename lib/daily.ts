@@ -1,6 +1,7 @@
-import type { BoardData, GameCase } from '../constants/cases';
-import { ALL_CASES } from '../constants/cases';
+import type { BoardData, BoardPlayMode, GameCase } from '../constants/cases';
 import type { BoardState } from './boardValidator';
+import { generatePuzzle, type PuzzleDifficulty } from './puzzleGenerator';
+import { puzzleToBoardData } from './puzzleToBoardData';
 
 export interface DailyMove {
   row: number;
@@ -52,19 +53,115 @@ export function getDailyDayNumber(dateStr: string): number {
   return Math.max(1, Math.floor((current - launch) / MS_PER_DAY) + 1);
 }
 
-export function getDailyCaseForDate(date = new Date(), cases = ALL_CASES): DailyCaseInfo {
-  const dateKey = getUtcDateKey(date);
-  const availableCases = cases.filter((gameCase) => !gameCase.is_premium);
-  const playableCases = availableCases.length > 0 ? availableCases : cases;
-  const boardSeed = generateDailySeed(dateKey);
-  const gameCase = playableCases[boardSeed % playableCases.length];
+// ─── Daily case generation ───────────────────────────────────────────────────
+//
+// The daily case is a procedurally generated Latin-square puzzle ("sudoku of
+// ducks"): every suspect appears exactly once per row, per column and per
+// region. It carries no narrative / suspect clues — those belong to authored
+// murdoku cases. Difficulty ramps over each 7-day cycle.
 
+const DAILY_DUCK_POOL = [
+  'duck_tophat', 'duck_plum', 'duck_chef', 'duck_detective', 'duck_butler', 'duck_cowboy',
+  'duck_witch', 'duck_pirate', 'duck_king', 'duck_ninja', 'duck_robot', 'duck_witch2',
+];
+
+const DAILY_FLAVORS = [
+  { title: 'Sudoku de la Mansión', location: 'Quackwell Manor' },
+  { title: 'El Enigma del Salón', location: 'Salón Dorado' },
+  { title: 'Cuadrícula del Jardín', location: 'Jardín Quackwell' },
+  { title: 'Misterio de la Biblioteca', location: 'Biblioteca Vieja' },
+  { title: 'El Patrón del Comedor', location: 'Comedor Real' },
+  { title: 'Lógica del Recibidor', location: 'Recibidor Quackwell' },
+  { title: 'El Reto del Estudio', location: 'Estudio del Conde' },
+];
+
+const DIFFICULTY_TIME_TARGET: Record<PuzzleDifficulty, number> = { easy: 420, medium: 600, hard: 780 };
+const DIFFICULTY_RATING: Record<PuzzleDifficulty, number> = { easy: 2, medium: 3, hard: 4 };
+const DAILY_ROOM_NAMES = ['Salón', 'Cocina', 'Estudio', 'Jardín', 'Recibidor', 'Galería'];
+
+function dailyDuckIds(dayNumber: number): string[] {
+  const offset = (dayNumber - 1) % DAILY_DUCK_POOL.length;
+  return Array.from({ length: 6 }, (_, i) => DAILY_DUCK_POOL[(offset + i) % DAILY_DUCK_POOL.length]);
+}
+
+export function getDailyDifficulty(dayNumber: number): PuzzleDifficulty {
+  const dayInCycle = (dayNumber - 1) % 7;
+  if (dayInCycle < 2) return 'easy';
+  if (dayInCycle < 5) return 'medium';
+  return 'hard';
+}
+
+// The generated case is deterministic per date, and `getDailyCase` is called
+// on every render of several screens, so memoize the last one by date key.
+let cachedDailyCase: { key: string; value: GameCase } | null = null;
+
+/** Builds the deterministic generated GameCase for a date. */
+export function getDailyCase(date = new Date()): GameCase {
+  const dateKey = getUtcDateKey(date);
+  if (cachedDailyCase && cachedDailyCase.key === dateKey) return cachedDailyCase.value;
+  const dayNumber = getDailyDayNumber(dateKey);
+  const difficulty = getDailyDifficulty(dayNumber);
+  const duckIds = dailyDuckIds(dayNumber);
+  const puzzle = generatePuzzle(`daily-${dateKey}`, {
+    size: 6,
+    playMode: 'latin',
+    difficulty,
+    duckIds,
+    roomNames: DAILY_ROOM_NAMES,
+  });
+  const board = puzzleToBoardData(puzzle, { boardId: `daily_${dateKey}`, decorations: 2 });
+  const flavor = DAILY_FLAVORS[(dayNumber - 1) % DAILY_FLAVORS.length];
+
+  const value: GameCase = {
+    case_id: `daily_${dateKey}`,
+    title: flavor.title,
+    subtitle: `Caso del Día #${dayNumber} · cada pato una vez por fila, columna y sala`,
+    difficulty: DIFFICULTY_RATING[difficulty],
+    location: flavor.location,
+    story_intro:
+      'Reconstruye la cuadrícula: cada sospechoso aparece exactamente una vez en cada fila, cada columna y cada sala.',
+    story_resolution: 'Cuadrícula completada. ¡Buen trabajo, detective!',
+    suspects: duckIds.slice(),
+    culprit: duckIds[0],
+    victim: duckIds[duckIds.length - 1],
+    board,
+    rewards: { coins: 150, xp: 75, clues: 1, unlock_character: null },
+    narrative_clues: [],
+    logic_clues: [],
+    suspect_clues: [],
+    time_target: DIFFICULTY_TIME_TARGET[difficulty],
+    is_premium: false,
+    prerequisite_cases: [],
+    tags: ['diario', 'sudoku', difficulty],
+  };
+  cachedDailyCase = { key: dateKey, value };
+  return value;
+}
+
+export function getDailyCaseForDate(date = new Date()): DailyCaseInfo {
+  const dateKey = getUtcDateKey(date);
   return {
     date: dateKey,
     dayNumber: getDailyDayNumber(dateKey),
-    boardSeed,
-    case: gameCase,
+    boardSeed: generateDailySeed(dateKey),
+    case: getDailyCase(date),
   };
+}
+
+/**
+ * Builds just the board for a date (used when only the puzzle is needed).
+ * Same date + same play mode -> same board.
+ */
+export function generateDailyBoard(date = new Date(), playMode: BoardPlayMode = 'latin'): BoardData {
+  const dateKey = getUtcDateKey(date);
+  const difficulty = getDailyDifficulty(getDailyDayNumber(dateKey));
+  const puzzle = generatePuzzle(`daily-${dateKey}`, {
+    size: 6,
+    playMode,
+    difficulty,
+    roomNames: playMode === 'latin' ? DAILY_ROOM_NAMES : undefined,
+  });
+  return puzzleToBoardData(puzzle, { boardId: `daily_${dateKey}`, decorations: 2 });
 }
 
 export function getSecondsToNextUtcMidnight(date = new Date()): number {

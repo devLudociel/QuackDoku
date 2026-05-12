@@ -24,20 +24,22 @@ interface RoomCellProps {
   borderLeft: boolean;
   cellSize: number;
   onPress: () => void;
+  onLongPress: () => void;
   showError: boolean;
   showConflict: boolean;
   showCorrect: boolean;
   showHint: boolean;
   showBlocked: boolean;
   sceneObject: SceneObject | null;
+  noteLabelLookup: Record<string, string>;
 }
 
 const OBJECT_ICON: Record<SceneObject['object_type'], string> = {
-  table: '▰',
+  table: '🛋️',
   chair: '🪑',
   plant: '🪴',
-  shelf: '▤',
-  rug: '▭',
+  shelf: '📚',
+  rug: '🟫',
 };
 
 const RoomCell = React.memo(function RoomCell({
@@ -52,12 +54,14 @@ const RoomCell = React.memo(function RoomCell({
   borderLeft,
   cellSize,
   onPress,
+  onLongPress,
   showError,
   showConflict,
   showCorrect,
   showHint,
   showBlocked,
   sceneObject,
+  noteLabelLookup,
 }: RoomCellProps) {
   const shakeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -85,38 +89,53 @@ const RoomCell = React.memo(function RoomCell({
   }, [state.duck_id, state.is_correct, scaleAnim]);
 
   const duck = state.duck_id ? DUCK_MAP[state.duck_id] : null;
+  const isSceneCell = roomColor === 'transparent';
 
   const bgColor = showError
-    ? Colors.cellError
+    ? isSceneCell ? 'rgba(232,72,85,0.28)' : Colors.cellError
     : showConflict
-    ? Colors.cellConflict
+    ? isSceneCell ? 'rgba(232,72,85,0.22)' : Colors.cellConflict
     : showCorrect
-    ? Colors.cellCorrect
+    ? isSceneCell ? 'rgba(32,184,90,0.22)' : Colors.cellCorrect
     : isSelected
-    ? Colors.yellowSoft
+    ? isSceneCell ? 'rgba(255,199,0,0.24)' : Colors.yellowSoft
     : state.x_mark
-    ? 'rgba(255,255,255,0.82)'
+    ? isSceneCell ? 'rgba(255,255,255,0.36)' : 'rgba(255,255,255,0.82)'
     : showBlocked
-    ? 'rgba(255,255,255,0.72)'
+    ? isSceneCell ? 'transparent' : 'rgba(30,136,229,0.10)'
     : showHint
-    ? Colors.cellHint
+    ? isSceneCell ? 'rgba(255,199,0,0.30)' : Colors.cellHint
     : state.is_fixed
     ? Colors.cellFixed
     : roomColor;
 
-  const borderStyle = {
-    borderTopWidth: borderTop ? 3 : 1,
-    borderRightWidth: borderRight ? 3 : 1,
-    borderBottomWidth: borderBottom ? 3 : 1,
-    borderLeftWidth: borderLeft ? 3 : 1,
-    borderTopColor: borderTop ? Colors.boardBorderRoom : Colors.boardBorderInner,
-    borderRightColor: borderRight ? Colors.boardBorderRoom : Colors.boardBorderInner,
-    borderBottomColor: borderBottom ? Colors.boardBorderRoom : Colors.boardBorderInner,
-    borderLeftColor: borderLeft ? Colors.boardBorderRoom : Colors.boardBorderInner,
-  };
+  const borderStyle = isSceneCell
+    ? {
+        borderTopWidth: 0,
+        borderRightWidth: 0,
+        borderBottomWidth: 0,
+        borderLeftWidth: 0,
+        borderColor: 'transparent',
+      }
+    : {
+        borderTopWidth: borderTop ? 4 : 1,
+        borderRightWidth: borderRight ? 4 : 1,
+        borderBottomWidth: borderBottom ? 4 : 1,
+        borderLeftWidth: borderLeft ? 4 : 1,
+        borderTopColor: borderTop ? Colors.boardBorderRoom : Colors.boardBorderInner,
+        borderRightColor: borderRight ? Colors.boardBorderRoom : Colors.boardBorderInner,
+        borderBottomColor: borderBottom ? Colors.boardBorderRoom : Colors.boardBorderInner,
+        borderLeftColor: borderLeft ? Colors.boardBorderRoom : Colors.boardBorderInner,
+      };
 
   return (
-    <Pressable onPress={onPress} disabled={state.is_fixed} style={{ width: cellSize, height: cellSize }}>
+    <Pressable
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={420}
+      disabled={state.is_fixed}
+      style={{ width: cellSize, height: cellSize }}
+    >
       <Animated.View
         style={[
           styles.cell,
@@ -136,7 +155,7 @@ const RoomCell = React.memo(function RoomCell({
 
         {!duck && sceneObject && !state.x_mark && state.notes.length === 0 && (
           <View style={styles.objectContainer}>
-            <Text style={[styles.objectIcon, { fontSize: cellSize * 0.38 }]}>
+            <Text style={[styles.objectIcon, { fontSize: cellSize * 0.42 }]}>
               {OBJECT_ICON[sceneObject.object_type]}
             </Text>
           </View>
@@ -147,18 +166,18 @@ const RoomCell = React.memo(function RoomCell({
           <View style={styles.notesContainer}>
             {state.notes.slice(0, 4).map((noteId) => (
               <Text key={noteId} style={styles.noteEmoji}>
-                {DUCK_MAP[noteId]?.emoji ?? '?'}
+                {noteLabelLookup[noteId] ?? '?'}
               </Text>
             ))}
           </View>
         )}
 
         {!duck && state.x_mark && (
-          <Text style={[styles.xMark, { fontSize: cellSize * 0.7 }]}>X</Text>
+          <Text style={[styles.xMark, { fontSize: cellSize * 0.6 }]}>✕</Text>
         )}
 
         {!duck && !state.x_mark && showBlocked && (
-          <Text style={[styles.blockedMark, { fontSize: cellSize * 0.46 }]}>X</Text>
+          <Text style={[styles.blockedMark, isSceneCell && styles.blockedMarkScene, { fontSize: cellSize * (isSceneCell ? 0.34 : 0.28) }]}>✕</Text>
         )}
       </Animated.View>
     </Pressable>
@@ -188,28 +207,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   objectIcon: {
-    color: 'rgba(18,18,18,0.46)',
-    fontWeight: '800',
+    opacity: 0.5,
   },
   notesContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 2,
-    gap: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 1,
+    gap: 2,
   },
   noteEmoji: {
-    fontSize: 8,
-    lineHeight: 10,
+    minWidth: 10,
+    textAlign: 'center',
+    fontSize: 10,
+    lineHeight: 12,
+    color: '#176EC9',
+    fontWeight: '900',
   },
   blockedMark: {
-    color: Colors.error,
+    color: '#1E88E5',
     fontWeight: '900',
-    opacity: 0.72,
+    opacity: 0.86,
+  },
+  blockedMarkScene: {
+    color: '#1473D1',
+    fontWeight: '900',
+    opacity: 0.82,
+    textShadowColor: 'rgba(255,255,255,0.95)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   xMark: {
-    color: Colors.blackPremium,
+    color: Colors.gray,
     fontWeight: '900',
-    opacity: 0.92,
+    opacity: 0.85,
   },
 });
 

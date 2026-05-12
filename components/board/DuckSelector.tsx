@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Pressable,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius } from '../../constants/theme';
@@ -46,6 +47,15 @@ interface DuckButtonProps {
   isActive: boolean;
   onSelectDuck: (duckId: string) => void;
   onFocusDuck: (duckId: string) => void;
+  compact: boolean;
+  showInlineClue: boolean;
+  label: string;
+}
+
+function shortDuckName(name: string): string {
+  const parts = name.split(' ');
+  if (parts[0] === 'Sr.' || parts[0] === 'Sra.') return parts[1] ?? name;
+  return parts[0] ?? name;
 }
 
 function DuckButton({
@@ -56,6 +66,9 @@ function DuckButton({
   isActive,
   onSelectDuck,
   onFocusDuck,
+  compact,
+  showInlineClue,
+  label,
 }: DuckButtonProps) {
   const duck = DUCK_MAP[duckId];
   const pan = useRef(new Animated.ValueXY()).current;
@@ -69,22 +82,26 @@ function DuckButton({
       onPress={() => onSelectDuck(duckId)}
       style={[
         styles.duckBtn,
+        compact && styles.duckBtnCompact,
         isActive && styles.duckActive,
         isComplete && styles.duckComplete,
         isLocked && styles.duckLocked,
       ]}
     >
+      <View style={styles.duckLetterBadge}>
+        <Text style={styles.duckLetterText}>{label}</Text>
+      </View>
       <Animated.View style={[styles.duckContent, { transform: pan.getTranslateTransform() }]}>
-        <DuckAvatar duck={duck} size={44} dimmed={isComplete} style={styles.duckAvatar} />
+        <DuckAvatar duck={duck} size={compact ? 36 : 44} dimmed={isComplete} style={styles.duckAvatar} />
         {isComplete && (
           <View style={styles.checkOverlay}>
             <Text style={styles.checkText}>✓</Text>
           </View>
         )}
         <Text style={[styles.duckName, isComplete && styles.duckNameComplete]} numberOfLines={1}>
-          {duck.name.split(' ')[0]}
+          {shortDuckName(duck.name)}
         </Text>
-        {clue && (
+        {clue && showInlineClue && (
           <Text style={[styles.duckClue, isComplete && styles.duckNameComplete]} numberOfLines={3}>
             {clue}
           </Text>
@@ -116,11 +133,16 @@ export default function DuckSelector({
   lockCompletedDucks,
 }: DuckSelectorProps) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 28 : 0);
   const clueLookup = useMemo(
     () => Object.fromEntries(suspectClues.map((clue) => [clue.duck_id, clue.clue])),
     [suspectClues]
   );
+  const compact = duckIds.length > 6 || width < 390;
+  const showInlineClues = !compact && suspectClues.length > 0;
+  const activeDuck = activeDuckId ? DUCK_MAP[activeDuckId] : null;
+  const activeClue = activeDuckId ? clueLookup[activeDuckId] ?? null : null;
   const handleFocusDuck = (duckId: string) => {
     onFocusDuck(duckId);
   };
@@ -186,13 +208,27 @@ export default function DuckSelector({
         </Pressable>
       </View>
 
+      {activeDuck && activeClue && !showInlineClues && (
+        <View style={styles.activeCluePanel}>
+          <DuckAvatar duck={activeDuck} size={30} />
+          <View style={styles.activeClueCopy}>
+            <Text style={styles.activeClueName} numberOfLines={1}>
+              {activeDuck.name}
+            </Text>
+            <Text style={styles.activeClueText} numberOfLines={2}>
+              {activeClue}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Duck selector row */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.duckRow}
       >
-        {duckIds.map((duckId) => {
+        {duckIds.map((duckId, index) => {
           const placedCount = countDuckPlacements(boardState, duckId);
           const isComplete = placedCount >= duckTargetCount;
           const isLocked = isComplete && lockCompletedDucks;
@@ -207,6 +243,9 @@ export default function DuckSelector({
               isActive={activeDuckId === duckId}
               onSelectDuck={handleSelectDuck}
               onFocusDuck={handleFocusDuck}
+              compact={compact}
+              showInlineClue={showInlineClues}
+              label={String.fromCharCode(65 + index)}
             />
           );
         })}
@@ -220,16 +259,16 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     borderTopWidth: 1,
     borderTopColor: Colors.grayLight,
-    paddingTop: Spacing.sm,
+    paddingTop: Spacing.xs,
   },
   controls: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: Colors.grayLight,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.xs,
   },
   controlBtn: {
     flex: 1,
@@ -264,8 +303,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   duckBtn: {
-    width: 118,
-    minHeight: 142,
+    width: 112,
+    minHeight: 132,
     alignItems: 'stretch',
     backgroundColor: Colors.background,
     borderRadius: Radius.card,
@@ -273,6 +312,29 @@ const styles = StyleSheet.create({
     borderColor: Colors.grayLight,
     padding: Spacing.xs,
     position: 'relative',
+  },
+  duckLetterBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    zIndex: 2,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.grayLight,
+  },
+  duckLetterText: {
+    fontSize: 11,
+    color: Colors.blackPremium,
+    fontWeight: '900',
+  },
+  duckBtnCompact: {
+    width: 88,
+    minHeight: 88,
   },
   duckContent: {
     alignItems: 'center',
@@ -319,5 +381,33 @@ const styles = StyleSheet.create({
     lineHeight: 13,
     color: Colors.blackPremium,
     textAlign: 'center',
+  },
+  activeCluePanel: {
+    marginHorizontal: Spacing.md,
+    marginBottom: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    borderRadius: Radius.badge,
+    borderWidth: 1,
+    borderColor: Colors.grayLight,
+    backgroundColor: Colors.background,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  activeClueCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  activeClueName: {
+    fontSize: 11,
+    color: Colors.gray,
+    fontWeight: '800',
+  },
+  activeClueText: {
+    fontSize: 11,
+    lineHeight: 14,
+    color: Colors.blackPremium,
+    fontWeight: '600',
   },
 });

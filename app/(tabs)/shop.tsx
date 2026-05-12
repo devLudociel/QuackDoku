@@ -35,6 +35,50 @@ const HINT_PACKS: ShopItem[] = [
   { id: 'hints_25', label: '25 Pistas', description: 'Maletín de pistas', price: '$3.99', emoji: '🧳', asset: 'clue', clues: 25 },
 ];
 
+interface SkinPack {
+  id: string;
+  label: string;
+  description: string;
+  price: string;
+  preview: string[];
+  accent: string;
+}
+
+const SKIN_PACKS: SkinPack[] = [
+  {
+    id: 'skin_noir',
+    label: 'Pack Detective Noir',
+    description: '5 skins en blanco y negro de cine clásico',
+    price: '$2.99',
+    preview: ['🕵️', '🎩', '🔍', '🚬', '📰'],
+    accent: '#11112A',
+  },
+  {
+    id: 'skin_neon',
+    label: 'Pack Neón Quack',
+    description: '5 skins brillantes estilo arcade',
+    price: '$2.99',
+    preview: ['🦆', '✨', '💫', '🌈', '⚡'],
+    accent: '#6C63FF',
+  },
+  {
+    id: 'skin_gold',
+    label: 'Pack Oro Legendario',
+    description: '3 skins doradas + marco de perfil dorado',
+    price: '$4.99',
+    preview: ['👑', '🏆', '💎'],
+    accent: '#D99A00',
+  },
+  {
+    id: 'skin_pirate',
+    label: 'Pack Aventura Pirata',
+    description: '4 skins de alta mar y un mapa del tesoro',
+    price: '$2.49',
+    preview: ['🏴‍☠️', '⚓', '🗺️', '🦜'],
+    accent: '#2E7D5B',
+  },
+];
+
 function ShopCard({ item }: { item: ShopItem }) {
   return (
     <Pressable
@@ -52,6 +96,32 @@ function ShopCard({ item }: { item: ShopItem }) {
       </View>
       <View style={styles.priceChip}>
         <Text style={styles.priceText}>{item.price}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+function SkinPackCard({ pack }: { pack: SkinPack }) {
+  return (
+    <Pressable
+      style={styles.skinCard}
+      onPress={() => Alert.alert('Próximamente', 'Las skins se podrán comprar y equipar al lanzamiento ✨')}
+    >
+      <View style={[styles.skinAccent, { backgroundColor: pack.accent }]} />
+      <View style={styles.skinBody}>
+        <View style={styles.skinPreviewRow}>
+          {pack.preview.map((emoji, i) => (
+            <Text key={`${pack.id}-${i}`} style={styles.skinPreviewEmoji}>{emoji}</Text>
+          ))}
+        </View>
+        <Text style={styles.skinLabel}>{pack.label}</Text>
+        <Text style={styles.skinDesc}>{pack.description}</Text>
+        <View style={styles.skinFooter}>
+          <View style={styles.priceChip}>
+            <Text style={styles.priceText}>{pack.price}</Text>
+          </View>
+          <Text style={styles.skinBadge}>NUEVO</Text>
+        </View>
       </View>
     </Pressable>
   );
@@ -98,6 +168,15 @@ export default function ShopScreen() {
           {HINT_PACKS.map((item) => <ShopCard key={item.id} item={item} />)}
         </View>
 
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.skinSectionIcon}>🎨</Text>
+            <Text style={styles.sectionTitle}>Skins de patos</Text>
+          </View>
+          <Text style={styles.skinSectionHint}>Personaliza tus sospechosos. Equípalas en Personajes.</Text>
+          {SKIN_PACKS.map((pack) => <SkinPackCard key={pack.id} pack={pack} />)}
+        </View>
+
         <View style={styles.freeSection}>
           <Text style={styles.freeSectionTitle}>Gratis</Text>
           <Pressable
@@ -106,7 +185,7 @@ export default function ShopScreen() {
           >
             <Text style={styles.freeEmoji}>📺</Text>
             <View style={styles.freeReward}>
-              <Text style={styles.freeLabel}>Ver anuncio -> +3</Text>
+              <Text style={styles.freeLabel}>Ver anuncio → +3</Text>
               <GameAsset name="clue" size={22} />
             </View>
           </Pressable>
@@ -222,6 +301,59 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: Fonts.small,
     color: Colors.blackPremium,
+  },
+  skinSectionIcon: {
+    fontSize: 24,
+  },
+  skinSectionHint: {
+    fontSize: Fonts.small,
+    color: Colors.gray,
+    marginBottom: Spacing.xs,
+  },
+  skinCard: {
+    backgroundColor: Colors.white,
+    borderRadius: Radius.card,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    ...Shadow.card,
+    marginBottom: Spacing.sm,
+  },
+  skinAccent: {
+    width: 8,
+  },
+  skinBody: {
+    flex: 1,
+    padding: Spacing.md,
+    gap: 4,
+  },
+  skinPreviewRow: {
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    marginBottom: 2,
+  },
+  skinPreviewEmoji: {
+    fontSize: 26,
+  },
+  skinLabel: {
+    fontSize: Fonts.body,
+    fontWeight: '800',
+    color: Colors.blackPremium,
+  },
+  skinDesc: {
+    fontSize: Fonts.small,
+    color: Colors.gray,
+  },
+  skinFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  skinBadge: {
+    fontSize: 10,
+    fontWeight: '900',
+    color: Colors.yellowDark,
+    letterSpacing: 1,
   },
   freeSection: {
     paddingHorizontal: Spacing.md,

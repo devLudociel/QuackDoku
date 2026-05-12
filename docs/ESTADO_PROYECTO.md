@@ -10,6 +10,8 @@ QuackDoku es una app movil hecha con Expo y React Native. El primer caso jugable
 
 El flujo actual ya no usa arrastrar y soltar. Esto se cambio porque en movil el arrastre daba problemas: los personajes desaparecian del tablero o se colocaban de forma imprecisa.
 
+El proyecto se esta moviendo hacia una identidad visual mas premium: pantallas claras para Home, Perfil, Daily y mapa; pantallas oscuras para puzzle, victoria, duelo y equipo. La prioridad inmediata es que cada feature se construya como una pieza completa: logica, UI, assets, datos, test manual y documentacion.
+
 ## Estado funcional
 
 - La app arranca en Expo Go.
@@ -30,6 +32,35 @@ El flujo actual ya no usa arrastrar y soltar. Esto se cambio porque en movil el 
   - seed deterministico por fecha en `lib/daily.ts`.
   - guardado en memoria del resultado diario en `stores/dailyStore.ts`.
   - el juego reconoce `?daily=1` y al completar registra share grid, estrellas, tiempo y errores.
+- Hay una primera pasada visual basada en los mockups:
+  - Home con header compacto, card oscura del caso diario, liga resumida, stats y expedientes activos.
+  - Caso Diario con hero oscuro, countdown por horas/minutos/segundos, stats y top detectives.
+  - Resultado diario en modo oscuro tipo victoria, con tarjeta compartible y ranking.
+  - Tabs inferiores con boton activo amarillo.
+
+## Direccion visual actual
+
+La app debe sentirse como puzzle premium movil, no como landing page. Referencias principales de estilo:
+
+- Amarillo principal: `#FFC700`.
+- Fondo claro: `#F7F7F3`.
+- Negro/ink: `#080913`.
+- Panel navy: `#11112A`.
+- Card navy: `#1B1B3D`.
+- Verde exito: `#20B85A`.
+- Rojo error: `#E84855`.
+- Texto principal: `#10101C`.
+- Texto secundario: `#777783`.
+
+Reglas visuales:
+
+- Botones principales amarillos tipo pill.
+- Titulos y numeros en peso muy bold.
+- Cards con radio alto y sombras suaves.
+- UI densa y utilitaria: el primer viewport debe mostrar accion real, no explicaciones largas.
+- Mantener modo claro para Home, Daily, Mapa y Perfil.
+- Mantener modo oscuro para Puzzle, Resultado/Victoria, Duelos y Equipo.
+- Los assets de patos deben funcionar con PNG real cuando exista y con emoji fallback cuando falte.
 
 ## Assets actuales
 
@@ -109,6 +140,68 @@ Contiene validaciones importantes:
 - deteccion de celdas incorrectas
 - comprobacion de si el tablero esta listo para acusar
 
+### Generador de puzzles
+
+- `lib/puzzleGenerator.ts`
+
+Genera puzzles deterministas por `seed`:
+
+- `generatePuzzle(seed, opts)` -> `{ solution, given, locked, rooms, ... }`.
+- Modo `latin`: cuadrado latino con regiones rectangulares; el puzzle generado tiene solucion UNICA a partir de las pistas dadas (verificado con un solver de conteo).
+- Modo `murdoku`: solucion valida tipo matriz de permutacion (un sospechoso por fila y columna) mas unas casillas `is_fixed` de semilla. La unicidad real en murdoku depende del sistema de pistas narrativas, no del tablero; `countMurdokuLayouts` mide cuanta ambiguedad queda.
+- RNG propio (mulberry32 + hash FNV-1a del seed): mismo seed y mismas opciones -> mismo puzzle.
+- Dificultad (`easy`/`medium`/`hard`) controla cuantas casillas se revelan.
+- Tests en `lib/__tests__/puzzleGenerator.test.ts` con `node --test` (no hay runner instalado; usa el TS nativo de Node >= 23). Tambien pasa `npx tsc --noEmit`. Para esto se anadio `noEmit` y `allowImportingTsExtensions` a `tsconfig.json`.
+
+### Adaptador a BoardData
+
+- `lib/puzzleToBoardData.ts`
+
+`puzzleToBoardData(generatedPuzzle, opts?)` -> `BoardData` valido para el juego y para `validateBoardDefinition`. Para `latin` reutiliza las regiones rectangulares del generador; para `murdoku` (o latin de tamano primo) usa un room por fila como fallback. No genera scene objects ni pistas narrativas.
+
+**El Caso Diario ahora es generado.** `getDailyCaseForDate` / `getDailyCase` (en `lib/daily.ts`) ya no rotan un caso fijo de `ALL_CASES`: construyen un `GameCase` determinista por fecha con un puzzle generado en modo `latin` (cuadrado latino de patos: cada pato una vez por fila, columna y sala). Sin pistas narrativas (`logic_clues`/`suspect_clues`/`narrative_clues` vacios) — el panel de pistas del juego solo aparece en modo `murdoku`, asi que se oculta solo. Dificultad sube por ciclos de 7 dias (`getDailyDifficulty(dayNumber)`: dias 1-2 easy, 3-5 medium, 6-7 hard), con `time_target` 420/600/780s. El `case_id` del diario es `daily_<fecha>`; `app/game/[caseId].tsx` lo resuelve via `getDailyCaseForDate()` cuando `?daily=1` (no via `CASE_MAP`). La pantalla de caso resuelto oculta el reveal de culpable/victima en modo `latin`. `getDailyCase` cachea el ultimo caso por fecha (se llama en cada render de varias pantallas). `generateDailyBoard(date?, playMode?)` sigue disponible si solo hace falta el tablero.
+
+Tests: `lib/__tests__/puzzleGenerator.test.ts` + `lib/__tests__/puzzleToBoardData.test.ts` (16 en total, todos pasan con `node --test`). `daily.ts` no se testea desde Node (usa imports relativos sin extension que solo resuelve Metro); se cubre via `npx tsc --noEmit`.
+
+### Catalogo de casos
+
+`constants/cases.ts` ya no tiene solo `CASE_001`. Hay 5 casos:
+
+- `CASE_001` — autoral, modo `murdoku`, con pistas narrativas (El Collar Dorado).
+- `CASE_002` .. `CASE_005` — generados con `makeGeneratedCase(...)` (usa `generatePuzzle` + `puzzleToBoardData`), modo `latin` ("sudoku de patos"), seed fijo por caso, dificultad easy/medium/medium/hard, sin pistas narrativas, encadenados por `prerequisite_cases`. `cases.ts` ahora importa `lib/puzzleGenerator` y `lib/puzzleToBoardData` (sin ciclo de runtime: esos modulos solo tienen `import type` de `cases.ts`). Se generan en module-init (~4 puzzles 6x6, milisegundos).
+
+### Tienda
+
+`app/(tabs)/shop.tsx` tiene seccion nueva "Skins de patos" con `SKIN_PACKS` (4 packs: Noir, Neón, Oro, Pirata) y `SkinPackCard` (preview de emojis + acento de color + badge NUEVO). Igual que el resto de la tienda es placeholder ("Próximamente") — NO hay sistema real de skins (ownership/equip/alt-art) todavia; eso es feature aparte (`feature/skins`).
+
+### Aspecto del tablero (regiones irregulares + frame)
+
+El generador de puzzles `latin` ahora produce **regiones irregulares tipo jigsaw** (areas contiguas de N celdas, como el Murdoku real), no cajas rectangulares. Opcion `regionStyle: 'jigsaw' | 'box'` en `generatePuzzle` (default `jigsaw`; `box` necesita que N factorice). Opcion `roomNames` para nombrar las areas; los casos del catalogo y el diario pasan nombres tematicos. `puzzleToBoardData` admite `decorations: number` para esparcir objetos de escena decorativos deterministas (hash del `board_id`) en celdas vacias — solo visual, no afecta el juego; catalogo y diario usan 7.
+
+Polish visual del tablero:
+- `components/board/MansionBoard.tsx`: el tablero va sobre un "mat" oscuro redondeado con sombra; bordes de region a 4px.
+- `components/board/RoomCell.tsx`: objetos de escena con emoji (🛋️ 🪑 🪴 📚 🟫) mas grandes y visibles.
+- `components/board/RoomLabel.tsx`: el nombre del area es una pildora blanca redondeada anclada cerca del centroide de la region (con borde del color del area).
+- `app/game/[caseId].tsx`: banner de reglas para modo `latin` ("cada sospechoso una vez por fila, columna y area").
+
+Ajustes tras feedback de capturas (las celdas se veian oscuras/embarradas y los puzzles muy llenos):
+- `MansionBoard.tsx`: el `board` ahora tiene fondo claro tipo papel (`#F3F1E9`) DETRAS de las celdas semitransparentes — antes el mat oscuro hacia que `rgba(pastel, 0.3)` se viera oscuro. El mat sigue oscuro como marco.
+- Menos pistas reveladas en `latin`: `DIFFICULTY_GIVEN_RATIO` bajado a easy 0.42 / medium 0.32 / hard 0.22 (antes 0.56/0.42/0.30). 6x6 da ~15/12/8 givens.
+- Menos decoraciones: casos del catalogo `decorations: 3`, diario `2` (antes 7).
+- `RoomCell.tsx`: objetos de escena mas pequenos y tenues (`cellSize*0.42`, opacity 0.5); marca X de celda no disponible mas pequena y gris (antes X roja grande).
+
+PENDIENTE PROBAR EN MOVIL/EXPO: no se ha verificado en dispositivo nada de esto — flujo Home -> Daily -> Game -> Resultado, casos nuevos del catalogo y su detalle, regiones jigsaw, pildoras de area, decoraciones, mat oscuro + board claro, banner de reglas, ni la seccion de skins. Hay que `npx expo start --clear` y comprobarlo todo. Verificado solo: `npx tsc --noEmit` exit 0, `node --test` 21/21, y un script que confirma que los 4 casos generados + el diario pasan `validateBoardDefinition` (no son puzzles invalidos — lo que se veia mal era presentacion).
+
+### Tablero con imagen de escenario
+
+`BoardData` admite `background_image?: ImageSourcePropType`. Si esta puesta, `MansionBoard` la pinta de fondo (stretch a `boardWidth x boardHeight`) y NO dibuja colores de region, bordes gruesos, `RoomLabel` ni iconos de objeto (todo eso ya viene en la imagen); las celdas quedan transparentes, solo se dibuja la rejilla fina, patos, highlights y X.
+
+`CASE_006` ("El Jardín de Atrás") es el primer caso de este tipo: murdoku 9x9 sobre `assets/escenario1.png`. PRIMERA PASADA — las regiones (8: Jardín Trasero, Estanque, Jardín de Flores, Cobertizo, Galería, Dormitorio, Salón, Cocina) y las `blocked_cells` (objetos = no ocupable) son una APROXIMACION a la lamina; la solucion (permutacion 9x9) y las `suspect_clues` son auto-consistentes con esa aproximacion. Hay que mirar el escenario en el movil y afinar que celdas tienen objetos / donde van exactamente las regiones. Reusa 9 patos existentes (tophat..king); victima `duck_plum`, asesino `duck_cowboy`. La pantalla de juego ahora muestra `narrative_clues` en el panel de pistas si `logic_clues` esta vacio; las `suspect_clues` siguen apareciendo en `DuckSelector` al enfocar un sospechoso.
+
+El catalogo ahora tiene 6 casos (`CASE_001`..`CASE_006`).
+
+PENDIENTE / FOLLOW-UP visual: afinar `CASE_006` contra la lamina (celdas de objetos, regiones); portraits de sospechosos con burbujas de pista alrededor del tablero (estilo lamina murdoku.com); mas escenarios pre-renderizados.
+
 ### Estado del juego
 
 - `stores/gameStore.ts`
@@ -180,8 +273,11 @@ No trabajar directo sobre `main`.
 Ramas sugeridas:
 
 - `main`: version estable.
-- `feature/logica-juego`: logica de tablero, validaciones, casos y pistas.
-- `feature/assets-ui`: assets, personajes, UI visual, iconos y pulido estetico.
+- `feature/caso-diario`: Caso Diario completo, UI + estado + share + conexion futura a backend.
+- `feature/mapa-progresion`: mapa visual de casos, posiciones, unlocks y navegacion.
+- `feature/puzzle-polish`: tablero, selector, feedback, pistas y experiencia de resolucion.
+- `feature/personajes-assets`: assets de patos, perfil visual, coleccion y escalas.
+- `feature/progreso-persistencia`: progreso real, recompensas, racha y storage/backend futuro.
 - `fix/nombre-del-bug`: arreglos concretos de bugs.
 
 Antes de dividir el trabajo, conviene hacer un commit checkpoint con el estado actual y subirlo al remoto. Asi todos empiezan desde la misma base.
@@ -191,7 +287,7 @@ Comandos recomendados:
 ```bash
 git checkout main
 git pull
-git checkout -b feature/assets-ui
+git checkout -b feature/mapa-progresion
 ```
 
 Para guardar avances:
@@ -200,59 +296,197 @@ Para guardar avances:
 git status
 git add .
 git commit -m "Describe el avance"
-git push -u origin feature/assets-ui
+git push -u origin feature/mapa-progresion
 ```
 
 Para integrar trabajo:
 
 - Abrir Pull Request.
-- Revisar cambios.
-- Probar Expo.
+- El otro debe revisar el PR, aunque sea corto.
+- Probar Expo en movil antes de mezclar.
 - Mezclar a `main` solo si funciona.
 
-## Division de trabajo sugerida
+## Como trabajar conectados
 
-### Persona A: logica
+No dividir el proyecto como "uno hace logica y otro hace assets" de forma rigida. Eso rompe la app porque cada feature necesita datos, UI, estados, balance y assets al mismo tiempo.
 
-Responsabilidades:
+La division recomendada es por slices verticales:
 
-- reglas del juego
-- validaciones
-- pistas
-- nuevos casos
-- balance de dificultad
-- vidas, recompensas y progreso
+- Una persona toma el rol de owner de una feature.
+- La otra toma el rol de reviewer/apoyo de esa misma feature.
+- El owner implementa el camino principal.
+- El reviewer valida en movil, revisa edge cases, ajusta visuales o datos pequenos y confirma que no se rompa otra pantalla.
+- En la siguiente feature pueden cambiar roles.
 
-Archivos habituales:
+Cada slice debe cerrar con:
 
-- `lib/boardValidator.ts`
-- `stores/gameStore.ts`
-- `constants/cases.ts`
+- UI visible funcionando en Expo Go.
+- Estado/datos minimos conectados.
+- Assets o fallback definidos.
+- Navegacion clara.
+- Checklist manual probado.
+- Este documento actualizado si cambia una decision.
+
+## Plan de trabajo para dos personas
+
+### Slice 1: Caso Diario completo local
+
+Estado: primera version hecha en frontend/local.
+
+Owner sugerido: quien toque `app/daily/*` y `lib/daily.ts`.
+
+Apoyo/reviewer:
+
+- Probar en movil que Home -> Daily -> Game -> Resultado funciona.
+- Revisar copy, share text y legibilidad.
+- Revisar que el resultado diario no duplique recompensa.
+
+Archivos:
+
+- `app/daily/index.tsx`
+- `app/daily/result.tsx`
+- `components/daily/DailyShareCard.tsx`
+- `lib/daily.ts`
+- `stores/dailyStore.ts`
 - `app/game/[caseId].tsx`
 
-### Persona B: assets y UI
+Pendiente:
 
-Responsabilidades:
+- Persistir el resultado local con storage o backend.
+- Conectar endpoint real cuando exista backend.
+- Reemplazar ranking simulado por ranking real.
 
-- assets de personajes
-- iconos
-- mejora visual del tablero
-- coleccion de personajes
-- pantallas de casos
-- pantallas de perfil/tienda
+### Slice 2: Mapa visual de casos
 
-Archivos habituales:
+Objetivo: reemplazar la lista de casos por nodos sobre plano de mansion, estilo Candy Crush.
+
+Owner sugerido: quien toque layout, posiciones y navegacion.
+
+Apoyo/reviewer:
+
+- Crear/revisar posiciones visuales.
+- Probar unlocks, caso actual y scroll en movil pequeno.
+- Revisar que no se rompan tabs ni detalle de caso.
+
+Archivos esperados:
+
+- `app/(tabs)/cases.tsx`
+- `components/map/CaseMapNode.tsx`
+- `constants/mapPositions.ts`
+- `constants/cases.ts`
+
+Contrato:
+
+- Cada caso debe tener posicion `x/y`, estado visual y ruta al detalle.
+- El nodo disponible mas reciente pulsa o destaca.
+- Bloqueados deben mostrar condicion visible.
+
+### Slice 3: Pulido del puzzle principal
+
+Objetivo: acercar la pantalla de juego al mockup oscuro.
+
+Owner sugerido: quien toque tablero y feedback.
+
+Apoyo/reviewer:
+
+- Verificar reglas Murdoku despues de cada ajuste visual.
+- Probar acusar, vidas, pistas, descartar y deshacer.
+- Revisar que los patos no se salgan de celdas.
+
+Archivos:
+
+- `app/game/[caseId].tsx`
+- `components/board/MansionBoard.tsx`
+- `components/board/RoomCell.tsx`
+- `components/board/DuckSelector.tsx`
+- `lib/boardValidator.ts`
+- `stores/gameStore.ts`
+
+Contrato:
+
+- Ningun cambio visual debe cambiar reglas sin avisar.
+- Si se toca `boardValidator.ts`, el reviewer debe probar solucion correcta e incorrecta.
+
+### Slice 4: Personajes, equipo y perfil
+
+Objetivo: que coleccion, perfil y equipo se vean como sistema premium coherente.
+
+Owner sugerido: quien toque assets/personajes.
+
+Apoyo/reviewer:
+
+- Revisar integracion de assets con `DuckAvatar`.
+- Probar fallback emoji.
+- Confirmar que cada asset se ve bien en tablero, cards y perfil.
+
+Archivos:
 
 - `assets/`
 - `constants/ducks.ts`
 - `components/ui/DuckAvatar.tsx`
-- `components/ui/GameAsset.tsx`
+- `app/(tabs)/characters.tsx`
+- `app/(tabs)/profile.tsx`
+
+Contrato:
+
+- Cada pato nuevo debe tener `duck_id`, nombre, rareza, lore y fallback emoji.
+- No bloquear una pantalla por falta de PNG.
+
+### Slice 5: Progreso real y economia
+
+Objetivo: guardar avance real del jugador y cerrar loop de recompensas.
+
+Owner sugerido: quien toque stores/progreso.
+
+Apoyo/reviewer:
+
+- Probar que no se dupliquen monedas/XP.
+- Revisar racha, casos completados y mejor tiempo.
+- Confirmar que Home, Perfil y Daily leen el mismo estado.
+
+Archivos:
+
+- `stores/userStore.ts`
+- `stores/dailyStore.ts`
+- `stores/collectionStore.ts`
+- `app/(tabs)/profile.tsx`
+- `app/(tabs)/index.tsx`
+
+Contrato:
+
+- Toda recompensa debe tener una sola fuente de verdad.
+- Si se completa un caso dos veces, decidir explicitamente si da recompensa o solo mejora record.
+
+## Ritmo de coordinacion
+
+Antes de empezar:
+
+- Ambos hacen `git pull`.
+- Cada uno dice que slice va a tocar.
+- Si dos slices comparten archivo, se decide quien edita primero.
+
+Durante el trabajo:
+
+- Commits pequenos.
+- No reformatear archivos completos.
+- Si se toca un archivo sensible, avisar en el chat.
+- Mantener Expo Go abierto y probar cada pantalla que cambia.
+
+Antes de cerrar una tarea:
+
+- Ejecutar `npx tsc --noEmit` o el comando de TypeScript documentado abajo.
+- Probar en movil, no solo web.
+- Escribir en el PR que se probo.
+- Pedir review del otro.
+
+Archivos sensibles compartidos:
+
+- `constants/cases.ts`
+- `stores/gameStore.ts`
+- `app/game/[caseId].tsx`
 - `components/board/RoomCell.tsx`
 - `components/board/DuckSelector.tsx`
-- `app/(tabs)/characters.tsx`
-- `app/case/[caseId].tsx`
-
-Atencion: `RoomCell.tsx` y `DuckSelector.tsx` los pueden necesitar ambas personas. Si se van a tocar en paralelo, avisar antes.
+- `constants/theme.ts`
 
 ## Normas para evitar conflictos
 
@@ -297,6 +531,9 @@ npx tsc --noEmit
 - Conectar Caso Diario a backend real cuando exista Fastify/Prisma/Redis.
 - Persistir resultado diario en storage o backend; ahora vive en memoria de Zustand.
 - Reemplazar ranking diario simulado por endpoint real.
+- Reemplazar lista de casos por mapa visual de nodos.
+- Pulir pantalla de puzzle al modo oscuro de los mockups.
+- Crear pantalla Equipo si se decide llevar esa feature al frontend actual.
 - Guardar progreso real del jugador.
 - Revisar tienda y economia.
 - Agregar sonido y feedback visual.
@@ -318,6 +555,7 @@ npx tsc --noEmit
 - Los assets reales son opcionales por personaje.
 - Mientras falten assets, se mantiene emoji fallback.
 - El tablero actual es funcional antes que visualmente final.
+- La colaboracion se hara por features completas, no por silos fijos de "logica" y "assets".
 
 ## Nota para otro Codex
 

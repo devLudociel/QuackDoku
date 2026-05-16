@@ -21,7 +21,11 @@ function readEnv(key: string): string | undefined {
 }
 
 export default function RootLayout() {
+  if (__DEV__) console.log('[layout] RootLayout render');
+
   useEffect(() => {
+    if (__DEV__) console.log('[layout] RootLayout mounted');
+
     // SFX registration — uncomment when assets/sfx/*.mp3 files exist.
     // registerSfx('place', require('../assets/sfx/place.mp3'));
     // registerSfx('error', require('../assets/sfx/error.mp3'));
@@ -32,34 +36,41 @@ export default function RootLayout() {
     // registerSfx('tick', require('../assets/sfx/tick.mp3'));
 
     let cancelled = false;
-    (async () => {
-      await initTelemetry({
-        posthogApiKey: readEnv('EXPO_PUBLIC_POSTHOG_API_KEY'),
-        posthogHost: readEnv('EXPO_PUBLIC_POSTHOG_HOST'),
-        sentryDsn: readEnv('EXPO_PUBLIC_SENTRY_DSN'),
-        environment: readEnv('EXPO_PUBLIC_ENV') ?? 'development',
-        release: Constants.expoConfig?.version,
-        debug: __DEV__,
-      });
-      if (cancelled) return;
+    const timer = setTimeout(() => {
+      (async () => {
+        try {
+          await initTelemetry({
+            posthogApiKey: readEnv('EXPO_PUBLIC_POSTHOG_API_KEY'),
+            posthogHost: readEnv('EXPO_PUBLIC_POSTHOG_HOST'),
+            sentryDsn: readEnv('EXPO_PUBLIC_SENTRY_DSN'),
+            environment: readEnv('EXPO_PUBLIC_ENV') ?? 'development',
+            release: Constants.expoConfig?.version,
+            debug: __DEV__,
+          });
+          if (cancelled) return;
 
-      const user = useUserStore.getState();
-      identifyUser(user.username || 'anon', {
-        level: user.level,
-        cases_completed: user.casesCompleted,
-        streak: user.streakDays,
-        has_league_pass: user.hasLeaguePass,
-      });
-      track('app_open', {
-        platform: Constants.platform?.ios ? 'ios' : Constants.platform?.android ? 'android' : 'web',
-        version: Constants.expoConfig?.version,
-      });
-    })();
+          const user = useUserStore.getState();
+          identifyUser(user.username || 'anon', {
+            level: user.level,
+            cases_completed: user.casesCompleted,
+            streak: user.streakDays,
+            has_league_pass: user.hasLeaguePass,
+          });
+          track('app_open', {
+            platform: Constants.platform?.ios ? 'ios' : Constants.platform?.android ? 'android' : 'web',
+            version: Constants.expoConfig?.version,
+          });
+        } catch (err) {
+          if (__DEV__) console.warn('[layout] telemetry boot failed', err);
+        }
+      })();
+    }, 0);
 
     return () => {
       cancelled = true;
-      flushTelemetry();
-      unloadAllSfx();
+      clearTimeout(timer);
+      try { flushTelemetry(); } catch {}
+      try { unloadAllSfx(); } catch {}
     };
   }, []);
 
@@ -69,7 +80,8 @@ export default function RootLayout() {
         <StatusBar style="dark" backgroundColor={Colors.background} />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="daily" />
+          <Stack.Screen name="daily/index" />
+          <Stack.Screen name="daily/result" />
           <Stack.Screen name="game/[caseId]" />
           <Stack.Screen name="case/[caseId]" options={{ headerShown: true, title: 'Detalle del Caso' }} />
         </Stack>

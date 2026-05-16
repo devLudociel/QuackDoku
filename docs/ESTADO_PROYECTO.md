@@ -117,6 +117,31 @@ Archivos nuevos: `lib/telemetry.ts`, `components/ErrorBoundary.tsx`, `.env.examp
 
 PENDIENTE: crear cuentas PostHog + Sentry, copiar `.env.example` a `.env`, rellenar claves reales, hacer dev build con EAS para activar Sentry nativo.
 
+### Telemetria → STUB en MVP (Expo Go incompat)
+
+Al intentar arrancar en Expo Go con SDK 54 detectamos que `posthog-react-native@4` y `@sentry/react-native@7` usan sintaxis `import.meta` (ESM moderno) que Hermes no soporta sin transform Babel adicional. Bundle compilaba pero crasheaba silenciosamente en device.
+
+Decision: degradar `lib/telemetry.ts` a **stub no-op** (mantiene API publica `track/identify/captureException/...` pero solo loguea a consola en `__DEV__`). Paquetes desinstalados de `package.json`:
+- `posthog-react-native`
+- `@sentry/react-native`
+- peer deps `expo-application` / `expo-device` / `expo-localization` (no las usabamos)
+
+Plugin `@sentry/react-native` quitado de `app.json`. `.env` con keys reales conservado para cuando se reactiven los backends.
+
+Reactivar telemetria real cuando: (a) hagamos EAS dev build (Babel pipeline transforma `import.meta`), o (b) downgrade a `posthog-react-native@3.x` + `@sentry/react-native@5.x`, o (c) anadir plugin Babel `@babel/plugin-syntax-import-meta`. Codigo de la implementacion real se preserva en commit `e8e3d1a`.
+
+### Babel + react-native-worklets/plugin
+
+`react-native-reanimated@4.1.1` (SDK 54 default) requiere registrar `react-native-worklets/plugin` en `babel.config.js`. Sin el, mobile crashea silenciosamente al cargar reanimated (web no usa el modulo nativo, por eso ahi cargaba).
+
+`babel.config.js` ahora incluye el plugin. Cambios en babel obligan `npx expo start --clear` para invalidar cache de transformaciones.
+
+### Rutas Expo Router
+
+`app/_layout.tsx` declaraba `Stack.Screen name="daily"` pero la carpeta `app/daily/` no exporta layout — solo `index.tsx` y `result.tsx`. Warning de expo-router. Corregido a:
+- `Stack.Screen name="daily/index"`
+- `Stack.Screen name="daily/result"`
+
 ## Pendiente inmediato slice MVP-Core (siguientes commits)
 
 - Onboarding extra: bandera en `(tabs)/index.tsx` o `case/[caseId]` para mostrar bienvenida fuera del primer caso.

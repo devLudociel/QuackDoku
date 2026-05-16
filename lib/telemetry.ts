@@ -1,13 +1,16 @@
-import { Platform } from 'react-native';
-import PostHog from 'posthog-react-native';
-import * as Sentry from '@sentry/react-native';
-
-// Telemetry abstraction. Two backends:
-//   - PostHog for product analytics (Expo Go safe, JS only).
-//   - Sentry for crash reporting + perf (needs dev build / EAS; not Expo Go).
-// Both initialize behind try/catch so missing env or native modules never
-// crash the app. Calls before init() are queued only for PostHog (its SDK
-// buffers internally); for Sentry they no-op silently.
+// Telemetry — stub no-op edition.
+//
+// posthog-react-native v4 and @sentry/react-native v7 both ship modern ESM
+// using `import.meta`, which Hermes (the RN engine bundled with Expo Go)
+// rejects at parse time. Loading either package from JS breaks the entire
+// bundle even when the require() is wrapped in try/catch — Metro still
+// inlines the source, and Hermes refuses to evaluate it.
+//
+// Workaround: keep the public API (`track`, `identifyUser`, `captureException`,
+// etc.) as no-ops here. Once we move from Expo Go to an EAS dev build with
+// a Babel pipeline that transforms `import.meta`, swap this file for the
+// real implementation in `lib/telemetry.real.ts` (to be added) or revert
+// from git history (commit e8e3d1a).
 
 export type TelemetryEvent =
   | 'app_open'
@@ -42,140 +45,48 @@ interface TelemetryConfig {
   debug?: boolean;
 }
 
-let posthogClient: PostHog | null = null;
-let sentryReady = false;
 let initialized = false;
 
 export async function initTelemetry(config: TelemetryConfig = {}): Promise<void> {
   if (initialized) return;
   initialized = true;
-
-  // PostHog
-  try {
-    if (config.posthogApiKey) {
-      posthogClient = new PostHog(config.posthogApiKey, {
-        host: config.posthogHost ?? 'https://eu.i.posthog.com',
-        flushAt: 20,
-        flushInterval: 20_000,
-        captureAppLifecycleEvents: false,
-      });
-    }
-  } catch (err) {
-    if (config.debug) console.warn('[telemetry] PostHog init failed', err);
-    posthogClient = null;
-  }
-
-  // Sentry — wrapped, will silently no-op under Expo Go (missing native).
-  try {
-    if (config.sentryDsn && Platform.OS !== 'web') {
-      Sentry.init({
-        dsn: config.sentryDsn,
-        environment: config.environment ?? 'production',
-        release: config.release,
-        tracesSampleRate: 0.2,
-        enableAutoSessionTracking: true,
-        debug: !!config.debug,
-      });
-      sentryReady = true;
-    }
-  } catch (err) {
-    if (config.debug) console.warn('[telemetry] Sentry init failed', err);
-    sentryReady = false;
+  if (config.debug) {
+    console.log('[telemetry] stub init (no-op until EAS dev build)', {
+      hasPosthogKey: !!config.posthogApiKey,
+      hasSentryDsn: !!config.sentryDsn,
+      environment: config.environment,
+    });
   }
 }
 
 export function identifyUser(userId: string, traits?: Record<string, unknown>): void {
-  try {
-    posthogClient?.identify(userId, traits as Record<string, any>);
-  } catch {
-    // ignore
-  }
-  try {
-    if (sentryReady) Sentry.setUser({ id: userId, ...(traits ?? {}) });
-  } catch {
-    // ignore
-  }
+  if (__DEV__) console.log('[telemetry/stub] identify', userId, traits);
 }
 
 export function setUserContext(traits: Record<string, unknown>): void {
-  try {
-    posthogClient?.register(traits as Record<string, any>);
-  } catch {
-    // ignore
-  }
+  if (__DEV__) console.log('[telemetry/stub] context', traits);
 }
 
 export function track(event: TelemetryEvent, properties?: Record<string, unknown>): void {
-  try {
-    posthogClient?.capture(event, properties as Record<string, any>);
-  } catch {
-    // ignore
-  }
-  try {
-    if (sentryReady) {
-      Sentry.addBreadcrumb({
-        category: 'event',
-        message: event,
-        data: properties as Record<string, any>,
-        level: 'info',
-      });
-    }
-  } catch {
-    // ignore
-  }
+  if (__DEV__) console.log('[telemetry/stub] track', event, properties);
 }
 
 export function trackScreen(name: string, properties?: Record<string, unknown>): void {
-  track('screen_view', { screen: name, ...properties });
-  try {
-    posthogClient?.screen(name, properties as Record<string, any>);
-  } catch {
-    // ignore
-  }
+  if (__DEV__) console.log('[telemetry/stub] screen', name, properties);
 }
 
 export function captureException(error: unknown, context?: Record<string, unknown>): void {
-  try {
-    if (sentryReady) {
-      if (context) Sentry.setContext('extra', context as Record<string, any>);
-      Sentry.captureException(error);
-    }
-  } catch {
-    // ignore
-  }
-  try {
-    const props: Record<string, any> = {
-      message: error instanceof Error ? error.message : String(error),
-      ...context,
-    };
-    if (error instanceof Error && error.stack) props.stack = error.stack;
-    posthogClient?.capture('exception', props);
-  } catch {
-    // ignore
-  }
+  if (__DEV__) console.warn('[telemetry/stub] exception', error, context);
 }
 
 export function captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'info'): void {
-  try {
-    if (sentryReady) Sentry.captureMessage(message, level);
-  } catch {
-    // ignore
-  }
+  if (__DEV__) console.log('[telemetry/stub] message', level, message);
 }
 
 export async function flushTelemetry(): Promise<void> {
-  try {
-    await posthogClient?.flush();
-  } catch {
-    // ignore
-  }
-  try {
-    if (sentryReady) await Sentry.flush();
-  } catch {
-    // ignore
-  }
+  // no-op
 }
 
 export function isTelemetryReady(): boolean {
-  return initialized && (posthogClient !== null || sentryReady);
+  return initialized;
 }

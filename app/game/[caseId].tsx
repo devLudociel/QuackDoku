@@ -7,12 +7,13 @@ import {
   Modal,
   Alert,
   ScrollView,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Colors, Spacing, Fonts, Radius, Shadow } from '../../constants/theme';
 import { CASE_MAP } from '../../constants/cases';
-import { useGameStore } from '../../stores/gameStore';
+import { useGameStore, type PlaceDuckResult } from '../../stores/gameStore';
 import { useDailyStore } from '../../stores/dailyStore';
 import { useUserStore } from '../../stores/userStore';
 import { buildDailyShareGrid, getDailyCaseForDate } from '../../lib/daily';
@@ -25,15 +26,29 @@ import GameAsset from '../../components/ui/GameAsset';
 import { DUCK_MAP } from '../../constants/ducks';
 import {
   getBoardPlayMode,
+  getCellKey,
   getDuckTargetPlacementCount,
   getUnavailableCellKeysForDuck,
   isBoardReadyToSubmit,
 } from '../../lib/boardValidator';
+import {
+  onContinueDenied,
+  onContinueOfferShown,
+  onContinuePaidCoins,
+  onHintUsed,
+  onLevelComplete,
+  onLifeLost,
+  onNeedHint,
+} from '../../lib/monetization';
+import type { GameMonetizationContext } from '../../lib/monetization';
 
 export default function GameScreen() {
   const { caseId, daily } = useLocalSearchParams<{ caseId: string; daily?: string }>();
-  const gameCase = CASE_MAP[caseId ?? ''];
   const isDailyRun = daily === '1';
+  const gameCase = useMemo(
+    () => (isDailyRun ? getDailyCaseForDate().case : CASE_MAP[caseId ?? '']),
+    [isDailyRun, caseId],
+  );
 
   const {
     board,
@@ -46,21 +61,14 @@ export default function GameScreen() {
     errors,
     stars,
     selectedCell,
-    notesMode,
-    xMode,
     history,
     moveHistory,
     startGame,
     selectCell,
-    placeDuck,
     placeDuckAt,
     submitSolution,
-    toggleXMode,
-    toggleXMarkAt,
     undoLast,
     useBasicClue,
-    revealCellWithClue,
-    toggleNotes,
     pauseGame,
     resumeGame,
     tick,
@@ -68,7 +76,7 @@ export default function GameScreen() {
     resetGame,
   } = useGameStore();
 
-  const { completeCaseReward, spendCoins } = useUserStore();
+  const { completeCaseReward, spendCoins, coins } = useUserStore();
   const completeDailyCase = useDailyStore((state) => state.completeDailyCase);
 
   const [errorCells, setErrorCells] = useState<Set<string>>(new Set());
@@ -77,9 +85,12 @@ export default function GameScreen() {
   const [hintCells, setHintCells] = useState<Set<string>>(new Set());
   const [activeDuckId, setActiveDuckId] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [caseCluesExpanded, setCaseCluesExpanded] = useState(false);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rewardedCaseRef = useRef<string | null>(null);
+  const gameOverOfferRef = useRef<string | null>(null);
 
   // Init game
   useEffect(() => {
@@ -91,6 +102,7 @@ export default function GameScreen() {
       setHintCells(new Set());
       setActiveDuckId(null);
       setFeedbackMessage(null);
+      setCaseCluesExpanded(getBoardPlayMode(gameCase.board) === 'murdoku' && !gameCase.board.background_image);
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -101,6 +113,7 @@ export default function GameScreen() {
   useEffect(() => {
     if (phase === 'playing') {
       rewardedCaseRef.current = null;
+      gameOverOfferRef.current = null;
     }
   }, [phase]);
 
@@ -144,12 +157,31 @@ export default function GameScreen() {
           shareGrid: buildDailyShareGrid(gameCase.board, boardState, moveHistory),
         });
       }
+
+      onLevelComplete(
+        stars,
+        rewardCoins,
+        rewardXp,
+        gameCase.rewards.clues,
+        isPerfect,
+        {
+          caseId: gameCase.case_id,
+          isDailyRun,
+          playMode: getBoardPlayMode(gameCase.board),
+          elapsedSeconds,
+          errors,
+          cluesLeft: clues,
+          heartsLeft: hearts,
+        }
+      );
     }
   }, [
     phase,
     gameCase?.case_id,
     errors,
     elapsedSeconds,
+    clues,
+    hearts,
     completeCaseReward,
     isDailyRun,
     completeDailyCase,
@@ -165,6 +197,58 @@ export default function GameScreen() {
   };
 
   const playMode = board ? getBoardPlayMode(board) : 'latin';
+  const duckLabels = useMemo(() => {
+    if (gameCase?.case_id !== 'case_006') return undefined;
+
+    return {
+      duck_tophat: 'A',
+      duck_chef: 'B',
+      duck_witch: 'C',
+      duck_detective: 'D',
+      duck_butler: 'E',
+      duck_cowboy: 'F',
+      duck_pirate: 'G',
+      duck_king: 'H',
+      duck_plum: 'V',
+    };
+  }, [gameCase?.case_id]);
+  const getMonetizationContext = useCallback(
+    (overrides: Partial<GameMonetizationContext> = {}): GameMonetizationContext | null => {
+      if (!gameCase) return null;
+
+      return {
+        caseId: gameCase.case_id,
+        isDailyRun,
+        playMode,
+        elapsedSeconds,
+        errors,
+        cluesLeft: clues,
+        heartsLeft: hearts,
+        ...overrides,
+      };
+    },
+    [clues, elapsedSeconds, errors, gameCase?.case_id, hearts, isDailyRun, playMode]
+  );
+
+  const activeCharacterClue = useMemo(() => {
+    if (!gameCase || !activeDuckId) return null;
+    return gameCase.suspect_clues.find((clue) => clue.duck_id === activeDuckId)?.clue ?? null;
+  }, [activeDuckId, gameCase]);
+
+  useEffect(() => {
+    if (phase !== 'gameover' || !gameCase || gameOverOfferRef.current === gameCase.case_id) return;
+
+    const context = getMonetizationContext({ heartsLeft: 0 });
+    if (!context) return;
+
+    gameOverOfferRef.current = gameCase.case_id;
+    onContinueOfferShown(100, coins, context);
+  }, [coins, gameCase, getMonetizationContext, phase]);
+
+  const caseClues = useMemo(() => {
+    if (!gameCase) return [];
+    return [...gameCase.narrative_clues, ...gameCase.logic_clues];
+  }, [gameCase]);
   const duckTargetPlacementCount = useMemo(() => {
     if (!board) return 1;
     return Math.max(...board.duck_ids.map((duckId) => getDuckTargetPlacementCount(board, duckId)));
@@ -175,8 +259,58 @@ export default function GameScreen() {
   }, [board, boardState]);
   const blockedCells = useMemo(() => {
     if (!board || boardState.length === 0) return new Set<string>();
-    return new Set(getUnavailableCellKeysForDuck(board, boardState, activeDuckId));
+    const playModeForGuide = getBoardPlayMode(board);
+    const permanentBlocked = new Set((board.blocked_cells ?? []).map((cell) => getCellKey(cell.row, cell.col)));
+
+    if (playModeForGuide === 'murdoku') {
+      if (!activeDuckId) return new Set<string>();
+
+      const guide = new Set<string>();
+      const addGuideCell = (row: number, col: number) => {
+        const key = getCellKey(row, col);
+        const cell = boardState[row]?.[col];
+        if (!cell || cell.duck_id || cell.is_fixed || permanentBlocked.has(key)) return;
+        guide.add(key);
+      };
+
+      for (let row = 0; row < board.grid_size.rows; row++) {
+        for (let col = 0; col < board.grid_size.cols; col++) {
+          if (!boardState[row]?.[col]?.duck_id) continue;
+          for (let c = 0; c < board.grid_size.cols; c++) addGuideCell(row, c);
+          for (let r = 0; r < board.grid_size.rows; r++) addGuideCell(r, col);
+        }
+      }
+
+      return guide;
+    }
+
+    if (!activeDuckId) return new Set<string>();
+    return new Set(
+      getUnavailableCellKeysForDuck(board, boardState, activeDuckId).filter((key) => !permanentBlocked.has(key))
+    );
   }, [activeDuckId, board, boardState]);
+  const boardMaxSize = useMemo(() => {
+    const selectorReserve = (board?.duck_ids.length ?? 0) > 6 ? 150 : 158;
+    const characterClueReserve = activeCharacterClue ? 44 : 0;
+    const hudReserve = 48;
+    const clueReserve = playMode === 'latin'
+      ? 34
+      : caseClues.length > 0
+      ? caseCluesExpanded ? 86 : 36
+      : 0;
+    const feedbackReserve = feedbackMessage ? 34 : 0;
+    const availableByHeight = windowHeight - selectorReserve - characterClueReserve - hudReserve - clueReserve - feedbackReserve - 4;
+    return Math.min(windowWidth, Math.max(260, availableByHeight));
+  }, [
+    board?.duck_ids.length,
+    activeCharacterClue,
+    caseClues.length,
+    caseCluesExpanded,
+    feedbackMessage,
+    playMode,
+    windowHeight,
+    windowWidth,
+  ]);
 
   const clearFeedbackLater = (delay = 1800) => {
     if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
@@ -212,8 +346,16 @@ export default function GameScreen() {
   };
 
   const applyPlacementFeedback = useCallback(
-    (result: ReturnType<typeof placeDuck>, fallbackKey: string) => {
+    (result: PlaceDuckResult, fallbackKey: string) => {
       if (result.lostHeart) {
+        const context = getMonetizationContext({
+          errors: errors + 1,
+          heartsLeft: Math.max(0, hearts - 1),
+        });
+        if (context) {
+          onLifeLost('placement', context, result.duck_id, result.row, result.col);
+        }
+
         const key = result.row !== null && result.col !== null ? `${result.row},${result.col}` : fallbackKey;
         showTemporaryCells(setErrorCells, [key], 700);
         showTemporaryCells(setConflictCells, result.conflictCellKeys.length ? result.conflictCellKeys : [key], 1000);
@@ -244,7 +386,7 @@ export default function GameScreen() {
         clearFeedbackLater(1200);
       }
     },
-    [canSubmitSolution, placeDuck, playMode]
+    [canSubmitSolution, errors, getMonetizationContext, hearts, playMode]
   );
 
   const placeDuckOnCell = useCallback(
@@ -252,47 +394,55 @@ export default function GameScreen() {
       const key = `${row},${col}`;
       if (blockedCells.has(key)) {
         showTemporaryCells(setConflictCells, [key], 900);
-        setFeedbackMessage('Esa celda está tachada para este pato.');
+        setFeedbackMessage(
+          playMode === 'murdoku'
+            ? 'Esa fila o columna ya tiene un sospechoso.'
+            : 'Esa celda está tachada para este pato.'
+        );
         clearFeedbackLater();
         return;
       }
 
       const result = placeDuckAt(row, col, duckId);
       applyPlacementFeedback(result, key);
+      if (result.success && playMode === 'murdoku') {
+        setActiveDuckId(null);
+        setHintCells(new Set());
+      }
     },
-    [applyPlacementFeedback, blockedCells, placeDuckAt]
+    [applyPlacementFeedback, blockedCells, placeDuckAt, playMode]
   );
 
   const handlePlaceDuck = useCallback(
     (duckId: string) => {
       setActiveDuckId(duckId);
-      if (selectedCell) {
+      const selectedState = selectedCell ? boardState[selectedCell.row]?.[selectedCell.col] : null;
+      if (playMode !== 'murdoku' && selectedCell && selectedState && !selectedState.duck_id && !selectedState.is_fixed) {
         placeDuckOnCell(selectedCell.row, selectedCell.col, duckId);
         return;
       }
 
-      setFeedbackMessage('Sospechoso seleccionado. Toca una casilla libre del tablero.');
+      setFeedbackMessage(
+        playMode === 'murdoku'
+          ? 'Toca una casilla para colocar al sospechoso.'
+          : 'Sospechoso seleccionado. Toca una casilla libre del tablero.'
+      );
       clearFeedbackLater(2000);
     },
-    [placeDuckOnCell, selectedCell]
+    [boardState, placeDuckOnCell, playMode, selectedCell]
   );
 
   const handleFocusDuck = useCallback((duckId: string) => {
     setActiveDuckId(duckId);
-    setHintCells(new Set());
-  }, []);
+
+    const suspectClue = gameCase?.suspect_clues.find((clue) => clue.duck_id === duckId);
+    setHintCells(
+      new Set((suspectClue?.highlight_cells ?? []).map((cell) => getCellKey(cell.row, cell.col)))
+    );
+  }, [gameCase]);
 
   const handleCellPress = useCallback(
     (row: number, col: number) => {
-      if (xMode) {
-        const marked = toggleXMarkAt(row, col);
-        if (!marked) {
-          setFeedbackMessage('Solo puedes descartar casillas libres.');
-          clearFeedbackLater();
-        }
-        return;
-      }
-
       if (activeDuckId) {
         placeDuckOnCell(row, col, activeDuckId);
         return;
@@ -300,36 +450,44 @@ export default function GameScreen() {
 
       selectCell(row, col);
     },
-    [activeDuckId, placeDuckOnCell, selectCell, toggleXMarkAt, xMode]
+    [activeDuckId, placeDuckOnCell, selectCell]
   );
+
+  const handleCellLongPress = useCallback(() => {}, []);
 
   const handleBasicHint = useCallback(() => {
     const result = useBasicClue();
     if (!result) {
+      const context = getMonetizationContext();
+      if (context) {
+        onNeedHint('basic_hint', clues <= 0 ? 'no_clues' : 'no_target', context);
+      }
       Alert.alert('Sin pistas', 'No hay pistas disponibles o no quedan celdas vacías.');
       return;
+    }
+
+    const context = getMonetizationContext({ cluesLeft: Math.max(0, clues - 1) });
+    if (context) {
+      onHintUsed('basic_hint', 'inventory', Math.max(0, clues - 1), context);
     }
 
     showTemporaryCells(setHintCells, result.cellKeys, 2400);
     setFeedbackMessage(result.message);
     clearFeedbackLater(2600);
-  }, [useBasicClue]);
-
-  const handleRevealHint = useCallback(() => {
-    const result = revealCellWithClue();
-    if (!result) {
-      Alert.alert('Sin pistas', 'No hay pistas disponibles o no quedan celdas vacías.');
-      return;
-    }
-
-    const key = `${result.row},${result.col}`;
-    showTemporaryCells(setCorrectCells, [key], 1000);
-    setFeedbackMessage('Pista avanzada usada.');
-    clearFeedbackLater();
-  }, [revealCellWithClue]);
+  }, [clues, getMonetizationContext, useBasicClue]);
 
   const handleSubmitSolution = useCallback(() => {
     const result = submitSolution();
+
+    if (result.lostHeart) {
+      const context = getMonetizationContext({
+        errors: errors + 1,
+        heartsLeft: Math.max(0, hearts - 1),
+      });
+      if (context) {
+        onLifeLost('accusation', context);
+      }
+    }
 
     if (result.isComplete) {
       return;
@@ -341,13 +499,20 @@ export default function GameScreen() {
 
     setFeedbackMessage(result.message);
     clearFeedbackLater(2200);
-  }, [submitSolution]);
+  }, [errors, getMonetizationContext, hearts, submitSolution]);
 
   const handleContinue = () => {
     const success = spendCoins(100);
+    const context = getMonetizationContext({ heartsLeft: 0 });
     if (success) {
+      if (context) {
+        onContinuePaidCoins(100, Math.max(0, coins - 100), context);
+      }
       continueAfterGameOver(100);
     } else {
+      if (context) {
+        onContinueDenied('not_enough_coins', 100, coins, context);
+      }
       Alert.alert('Sin monedas', 'No tienes suficientes monedas para continuar.');
     }
   };
@@ -387,16 +552,36 @@ export default function GameScreen() {
         </View>
       </View>
 
-      {playMode === 'murdoku' && gameCase.logic_clues.length > 0 && (
-        <View style={styles.cluePanel}>
-          <Text style={styles.clueTitle}>Pistas del caso</Text>
-          <ScrollView style={styles.clueScroll} showsVerticalScrollIndicator={false}>
-            {gameCase.logic_clues.slice(0, 2).map((clue, index) => (
-              <Text key={`${index}-${clue}`} style={styles.clueText}>
-                {index + 1}. {clue}
+      {playMode === 'murdoku' && caseClues.length > 0 && (
+        <View style={[styles.cluePanel, caseCluesExpanded ? styles.cluePanelExpanded : styles.cluePanelCompact]}>
+          <Pressable onPress={() => setCaseCluesExpanded((value) => !value)}>
+            <View style={styles.clueHeader}>
+              <Text style={styles.clueCounter}>{caseCluesExpanded ? 'Ocultar' : `${caseClues.length} reglas`}</Text>
+            </View>
+            {!caseCluesExpanded && (
+              <Text style={styles.cluePreview} numberOfLines={2}>
+                1. {caseClues[0]}
               </Text>
-            ))}
-          </ScrollView>
+            )}
+          </Pressable>
+          {caseCluesExpanded ? (
+            <ScrollView style={styles.clueScroll} showsVerticalScrollIndicator={false}>
+              {caseClues.map((clue, index) => (
+                <Text key={`${index}-${clue}`} style={styles.clueText}>
+                  {index + 1}. {clue}
+                </Text>
+              ))}
+            </ScrollView>
+          ) : null}
+        </View>
+      )}
+
+      {playMode === 'latin' && (
+        <View style={styles.rulesBanner}>
+          <Text style={styles.rulesBannerIcon}>🧩</Text>
+          <Text style={styles.rulesBannerText}>
+            Cada sospechoso aparece <Text style={styles.rulesBannerStrong}>una vez</Text> por fila, columna y área.
+          </Text>
         </View>
       )}
 
@@ -412,6 +597,8 @@ export default function GameScreen() {
           hintCells={hintCells}
           blockedCells={blockedCells}
           onCellPress={handleCellPress}
+          onCellLongPress={handleCellLongPress}
+          maxBoardSize={boardMaxSize}
         />
       </View>
 
@@ -430,18 +617,14 @@ export default function GameScreen() {
         onFocusDuck={handleFocusDuck}
         onUndo={undoLast}
         onBasicHint={handleBasicHint}
-        onRevealHint={handleRevealHint}
         onSubmitSolution={handleSubmitSolution}
-        onToggleXMode={toggleXMode}
-        onToggleNotes={toggleNotes}
-        suspectClues={gameCase.suspect_clues}
-        xMode={xMode}
-        notesMode={notesMode}
         canUndo={history.length > 0}
         canSubmitSolution={canSubmitSolution}
         cluesLeft={clues}
         activeDuckId={activeDuckId}
         lockCompletedDucks={playMode === 'latin'}
+        duckLabels={duckLabels}
+        suspectClues={gameCase.suspect_clues}
       />
 
       {/* PAUSE Modal */}
@@ -498,14 +681,20 @@ export default function GameScreen() {
               ))}
             </View>
 
-            <Text style={styles.culpritReveal}>
-              La víctima era {victimDuck?.name ?? gameCase.victim}. {'\n'}
-              El culpable era... {'\n'}
-              <Text style={styles.culpritName}>
-                {culpritDuck?.name ?? gameCase.culprit}
-              </Text>
-            </Text>
-            {culpritDuck && <DuckAvatar duck={culpritDuck} size={96} style={styles.culpritAvatar} />}
+            {playMode === 'murdoku' ? (
+              <>
+                <Text style={styles.culpritReveal}>
+                  La víctima era {victimDuck?.name ?? gameCase.victim}. {'\n'}
+                  El culpable era... {'\n'}
+                  <Text style={styles.culpritName}>
+                    {culpritDuck?.name ?? gameCase.culprit}
+                  </Text>
+                </Text>
+                {culpritDuck && <DuckAvatar duck={culpritDuck} size={96} style={styles.culpritAvatar} />}
+              </>
+            ) : (
+              <Text style={styles.culpritReveal}>Cuadrícula resuelta con lógica impecable.</Text>
+            )}
 
             <View style={styles.rewardsRow}>
               <View style={styles.rewardChip}>
@@ -539,7 +728,7 @@ export default function GameScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#0F0F23',
   },
   centered: {
     flex: 1,
@@ -548,22 +737,23 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: Fonts.body,
-    color: Colors.gray,
+    color: Colors.whiteMuted,
   },
   hud: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.white,
+    paddingVertical: Spacing.xs,
+    backgroundColor: '#0F0F23',
     borderBottomWidth: 1,
-    borderBottomColor: Colors.grayLight,
+    borderBottomColor: 'rgba(255,199,0,0.16)',
   },
   pauseBtn: {
     padding: Spacing.xs,
   },
   pauseIcon: {
     fontSize: 22,
+    color: Colors.whiteMuted,
   },
   hudCenter: {
     flex: 1,
@@ -572,7 +762,7 @@ const styles = StyleSheet.create({
   },
   caseTitle: {
     fontSize: 12,
-    color: Colors.gray,
+    color: Colors.whiteMuted,
     fontWeight: '600',
   },
   hudRight: {
@@ -582,7 +772,7 @@ const styles = StyleSheet.create({
   timer: {
     fontSize: Fonts.body,
     fontWeight: '700',
-    color: Colors.blackPremium,
+    color: Colors.yellow,
   },
   cluesHud: {
     flexDirection: 'row',
@@ -591,53 +781,96 @@ const styles = StyleSheet.create({
   },
   cluesHudText: {
     fontSize: Fonts.small,
-    color: Colors.gray,
+    color: Colors.whiteMuted,
     fontWeight: '700',
   },
   boardContainer: {
     flex: 1,
     justifyContent: 'center',
-    paddingVertical: Spacing.sm,
+    paddingVertical: 2,
+    minHeight: 0,
   },
   cluePanel: {
     marginHorizontal: Spacing.md,
-    marginTop: Spacing.sm,
-    maxHeight: 84,
-    backgroundColor: Colors.white,
-    borderRadius: Radius.card,
+    marginTop: Spacing.xs,
+    backgroundColor: 'rgba(255,199,0,0.08)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.grayLight,
-    padding: Spacing.sm,
-    ...Shadow.card,
+    borderColor: 'rgba(255,199,0,0.48)',
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
   },
-  clueTitle: {
-    fontSize: Fonts.xs,
-    color: Colors.blackPremium,
+  cluePanelCompact: {
+    maxHeight: 54,
+  },
+  cluePanelExpanded: {
+    maxHeight: 94,
+  },
+  clueHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: Spacing.sm,
+    marginBottom: 2,
+  },
+  clueCounter: {
+    fontSize: 10,
+    color: Colors.whiteMuted,
     fontWeight: '800',
-    marginBottom: 4,
   },
   clueScroll: {
-    maxHeight: 48,
+    maxHeight: 62,
   },
   clueText: {
     fontSize: 11,
-    color: Colors.gray,
+    color: Colors.whiteMuted,
     lineHeight: 16,
     marginBottom: 3,
   },
-  feedbackBar: {
+  cluePreview: {
+    fontSize: 11,
+    color: Colors.whiteMuted,
+    lineHeight: 15,
+  },
+  rulesBanner: {
     marginHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderRadius: Radius.badge,
-    backgroundColor: Colors.white,
+    marginTop: Spacing.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    backgroundColor: 'rgba(255,199,0,0.08)',
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.grayLight,
+    borderColor: 'rgba(255,199,0,0.42)',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
-    ...Shadow.card,
+  },
+  rulesBannerIcon: {
+    fontSize: 16,
+  },
+  rulesBannerText: {
+    flex: 1,
+    color: Colors.grayLight,
+    fontSize: Fonts.xs,
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+  rulesBannerStrong: {
+    color: Colors.yellow,
+    fontWeight: '900',
+  },
+  feedbackBar: {
+    marginHorizontal: Spacing.md,
+    marginBottom: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(15,15,35,0.94)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,199,0,0.36)',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 3,
   },
   feedbackText: {
-    color: Colors.blackPremium,
+    color: Colors.whiteMuted,
     fontSize: Fonts.small,
     fontWeight: '600',
     textAlign: 'center',

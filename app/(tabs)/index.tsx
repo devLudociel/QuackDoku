@@ -16,6 +16,7 @@ import { useCountdownToMidnight } from '../../hooks/useCountdownToMidnight';
 import GameAsset from '../../components/ui/GameAsset';
 import DuckAvatar from '../../components/ui/DuckAvatar';
 import { DUCK_MAP } from '../../constants/ducks';
+import { onLeaguePassOpportunity } from '../../lib/monetization';
 
 const ACTIVE_CASES = [
   { title: 'El Informador', subtitle: 'Club Nocturno Migra', status: 'Jugar' },
@@ -24,7 +25,7 @@ const ACTIVE_CASES = [
 ];
 
 export default function HomeScreen() {
-  const { username, level, xp, coins, streakDays, casesCompleted, bestTime } = useUserStore();
+  const { username, level, xp, coins, streakDays, casesCompleted, bestTime, hasLeaguePass } = useUserStore();
   const xpProgress = getLevelProgress(level, xp);
   const daily = getDailyCaseForDate();
   const secondsLeft = useCountdownToMidnight();
@@ -35,6 +36,10 @@ export default function HomeScreen() {
     const mins = Math.floor(seconds / 60);
     const rest = seconds % 60;
     return `${mins}:${rest.toString().padStart(2, '0')}`;
+  };
+
+  const handleLeaguePress = () => {
+    onLeaguePassOpportunity('home_card', 'weekly_gold', 7, 30, hasLeaguePass);
   };
 
   return (
@@ -78,19 +83,24 @@ export default function HomeScreen() {
           <Text style={styles.heroTimer}>⏱ {formatCountdown(secondsLeft)}</Text>
         </Pressable>
 
-        <Pressable style={styles.leagueCard}>
+        <Pressable style={styles.leagueCard} onPress={handleLeaguePress}>
           <View style={styles.medalCircle}>
             <Text style={styles.medalText}>🥇</Text>
           </View>
           <View style={styles.leagueInfo}>
-            <Text style={styles.leagueTitle}>Liga Oro · Posición 7/30</Text>
-            <Text style={styles.leagueSub}>3 días para el cierre</Text>
+            <Text style={styles.leagueTitle} numberOfLines={1}>Liga Oro · Posición 7/30</Text>
+            <Text style={styles.leagueSub} numberOfLines={1}>Básica gratis · 3 días para el cierre</Text>
             <View style={styles.leagueTrack}>
               <View style={styles.leagueFill} />
             </View>
             <Text style={styles.leagueFoot}>Posición actual: 7</Text>
           </View>
           <View style={styles.leagueReward}>
+            <View style={[styles.leaguePassPill, hasLeaguePass && styles.leaguePassPillOwned]}>
+              <Text style={[styles.leaguePassText, hasLeaguePass && styles.leaguePassTextOwned]}>
+                {hasLeaguePass ? 'ACTIVO' : 'PASE'}
+              </Text>
+            </View>
             <Text style={styles.leagueRewardText}>+200</Text>
             <GameAsset name="coin" size={14} />
             <Text style={styles.leagueRewardSub}>si top 10</Text>
@@ -351,6 +361,24 @@ const styles = StyleSheet.create({
   leagueReward: {
     alignItems: 'center',
     gap: 1,
+  },
+  leaguePassPill: {
+    backgroundColor: Colors.navy,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 3,
+  },
+  leaguePassPillOwned: {
+    backgroundColor: Colors.successSoft,
+  },
+  leaguePassText: {
+    color: Colors.yellow,
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  leaguePassTextOwned: {
+    color: Colors.success,
   },
   leagueRewardText: {
     color: Colors.warning,

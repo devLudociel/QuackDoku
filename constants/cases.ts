@@ -410,6 +410,233 @@ export const CASE_005: GameCase = makeGeneratedCase({
   tags: ['mansion', 'logica', 'experto'],
 });
 
+// ─── Casos 7-21: catálogo extendido (15 casos generados) ────────────────────
+
+export const CASE_007: GameCase = makeGeneratedCase({
+  case_id: 'case_007',
+  seed: 'quackdoku-case-007',
+  title: 'El Sótano Oculto',
+  location: 'Sótano de la Mansión',
+  story_intro:
+    'Encontraron una puerta tapiada bajo la escalera. Ordena a los testigos: un pato por fila, columna y sala.',
+  story_resolution: 'El sótano revela sus secretos. Trabajo limpio.',
+  difficulty: 'easy',
+  duckOffset: 2,
+  roomNames: ['Carbonera', 'Bodega', 'Caldera', 'Trastero', 'Túnel', 'Escalera'],
+  prerequisite_cases: ['case_006'],
+  tags: ['mansion', 'logica', 'sotano'],
+});
+
+export const CASE_008: GameCase = makeGeneratedCase({
+  case_id: 'case_008',
+  seed: 'quackdoku-case-008',
+  title: 'La Galería de Retratos',
+  location: 'Galería de Retratos',
+  story_intro:
+    'Los retratos cambiaron de posición durante la velada. Reconstruye dónde estaba cada pato: una vez por fila, columna y sala.',
+  story_resolution: 'Cada retrato vuelve a su clavo. Caso cerrado.',
+  difficulty: 'easy',
+  duckOffset: 4,
+  roomNames: ['Norte', 'Sur', 'Este', 'Oeste', 'Centro', 'Vitrina'],
+  prerequisite_cases: ['case_007'],
+  tags: ['mansion', 'logica', 'arte'],
+});
+
+export const CASE_009: GameCase = makeGeneratedCase({
+  case_id: 'case_009',
+  seed: 'quackdoku-case-009',
+  title: 'El Estudio del Profesor',
+  location: 'Estudio de Quackwell',
+  story_intro:
+    'El profesor jura que no movió ningún papel. Pero alguien sí. Coloca a cada pato siguiendo la regla del cuadrado latino.',
+  story_resolution: 'Los apuntes recuperan su orden. La lógica gana.',
+  difficulty: 'easy',
+  duckOffset: 6,
+  roomNames: ['Escritorio', 'Pizarra', 'Librería', 'Archivo', 'Sillón', 'Ventanal'],
+  prerequisite_cases: ['case_008'],
+  tags: ['mansion', 'logica', 'estudio'],
+});
+
+export const CASE_010: GameCase = makeGeneratedCase({
+  case_id: 'case_010',
+  seed: 'quackdoku-case-010',
+  title: 'La Sala de Trofeos',
+  location: 'Sala de Trofeos',
+  story_intro:
+    'Faltan tres copas y nadie quiere admitirlo. Reconstruye las posiciones de los sospechosos sin saltarte la regla.',
+  story_resolution: 'Las copas aparecen donde nunca buscaron. Caso resuelto.',
+  difficulty: 'easy',
+  duckOffset: 0,
+  roomNames: ['Vitrina A', 'Vitrina B', 'Pedestal', 'Pared Este', 'Pared Oeste', 'Mesa'],
+  prerequisite_cases: ['case_009'],
+  tags: ['mansion', 'logica', 'trofeos'],
+});
+
+export const CASE_011: GameCase = makeGeneratedCase({
+  case_id: 'case_011',
+  seed: 'quackdoku-case-011',
+  title: 'El Pasillo de los Espejos',
+  location: 'Pasillo de los Espejos',
+  story_intro:
+    'Cada espejo refleja una versión distinta de los hechos. Coloca a cada pato una sola vez por fila, columna y sala.',
+  story_resolution: 'Los reflejos coinciden por fin. Buen pulso.',
+  difficulty: 'easy',
+  duckOffset: 8,
+  roomNames: ['Entrada', 'Curva', 'Recodo', 'Bóveda', 'Tramo Largo', 'Salida'],
+  prerequisite_cases: ['case_010'],
+  tags: ['mansion', 'logica', 'pasillo'],
+});
+
+export const CASE_012: GameCase = makeGeneratedCase({
+  case_id: 'case_012',
+  seed: 'quackdoku-case-012',
+  title: 'El Observatorio Astronómico',
+  location: 'Observatorio',
+  story_intro:
+    'El telescopio fue manipulado y las cartas estelares están revueltas. Aplica la lógica sin errores.',
+  story_resolution: 'El cielo vuelve a tener sentido. Caso archivado.',
+  difficulty: 'medium',
+  duckOffset: 1,
+  roomNames: ['Cúpula', 'Lente', 'Cartas', 'Plataforma', 'Diario', 'Escalera'],
+  prerequisite_cases: ['case_011'],
+  tags: ['mansion', 'logica', 'observatorio'],
+});
+
+export const CASE_013: GameCase = makeGeneratedCase({
+  case_id: 'case_013',
+  seed: 'quackdoku-case-013',
+  title: 'La Bodega del Mayordomo',
+  location: 'Bodega Privada',
+  story_intro:
+    'Falta una botella de la cosecha del 1924. Reconstruye a quién vio el mayordomo y dónde.',
+  story_resolution: 'La cosecha aparece detrás de una pared falsa. Caso resuelto.',
+  difficulty: 'medium',
+  duckOffset: 3,
+  roomNames: ['Cava Norte', 'Cava Sur', 'Barriles', 'Catador', 'Ático Vino', 'Pasillo Frío'],
+  prerequisite_cases: ['case_012'],
+  tags: ['mansion', 'logica', 'bodega'],
+});
+
+export const CASE_014: GameCase = makeGeneratedCase({
+  case_id: 'case_014',
+  seed: 'quackdoku-case-014',
+  title: 'El Conservatorio Musical',
+  location: 'Conservatorio',
+  story_intro:
+    'El piano sonó solo a las tres en punto. Hay seis testigos y seis salas. Encaja la lógica.',
+  story_resolution: 'La partitura encaja. Buen oído.',
+  difficulty: 'medium',
+  duckOffset: 5,
+  roomNames: ['Piano', 'Cuerdas', 'Viento', 'Coro', 'Atril', 'Foso'],
+  prerequisite_cases: ['case_013'],
+  tags: ['mansion', 'logica', 'musica'],
+});
+
+export const CASE_015: GameCase = makeGeneratedCase({
+  case_id: 'case_015',
+  seed: 'quackdoku-case-015',
+  title: 'El Salón de Té',
+  location: 'Salón de Té',
+  story_intro:
+    'Alguien envenenó una sola taza. Ordena las posiciones de cada pato y descubre quién estaba donde no debía.',
+  story_resolution: 'La taza correcta sale a la luz. Limpio.',
+  difficulty: 'medium',
+  duckOffset: 7,
+  roomNames: ['Mesa Alta', 'Tetera', 'Bandeja', 'Cocina Té', 'Ventana', 'Diván'],
+  prerequisite_cases: ['case_014'],
+  tags: ['mansion', 'logica', 'salon'],
+});
+
+export const CASE_016: GameCase = makeGeneratedCase({
+  case_id: 'case_016',
+  seed: 'quackdoku-case-016',
+  title: 'La Sala de Armas',
+  location: 'Sala de Armas',
+  story_intro:
+    'Una alabarda desapareció del muro. Coloca a cada pato sin romper la regla.',
+  story_resolution: 'El arma estaba bajo una armadura. Caso cerrado.',
+  difficulty: 'medium',
+  duckOffset: 9,
+  roomNames: ['Espadas', 'Lanzas', 'Armaduras', 'Escudos', 'Arquería', 'Trofeo'],
+  prerequisite_cases: ['case_015'],
+  tags: ['mansion', 'logica', 'armas'],
+});
+
+export const CASE_017: GameCase = makeGeneratedCase({
+  case_id: 'case_017',
+  seed: 'quackdoku-case-017',
+  title: 'El Ático Polvoriento',
+  location: 'Ático',
+  story_intro:
+    'Huellas frescas en el polvo. Pero seis patos juran que no subieron. Aplica la lógica para descartarlos.',
+  story_resolution: 'El intruso queda al descubierto. Detalle fino.',
+  difficulty: 'medium',
+  duckOffset: 11,
+  roomNames: ['Baúles', 'Maniquíes', 'Ventanuco', 'Vigas', 'Cofre', 'Escalera Ático'],
+  prerequisite_cases: ['case_016'],
+  tags: ['mansion', 'logica', 'atico'],
+});
+
+export const CASE_018: GameCase = makeGeneratedCase({
+  case_id: 'case_018',
+  seed: 'quackdoku-case-018',
+  title: 'La Cripta Familiar',
+  location: 'Cripta',
+  story_intro:
+    'Un sarcófago fue abierto. Sin testigos vivos, solo queda la lógica. Coloca a cada pato sin error.',
+  story_resolution: 'El profanador es identificado. Trabajo brillante.',
+  difficulty: 'hard',
+  duckOffset: 2,
+  roomNames: ['Nave', 'Altar', 'Sarcófago', 'Cripta Honda', 'Antesala', 'Escalinata'],
+  prerequisite_cases: ['case_017'],
+  tags: ['mansion', 'logica', 'cripta'],
+});
+
+export const CASE_019: GameCase = makeGeneratedCase({
+  case_id: 'case_019',
+  seed: 'quackdoku-case-019',
+  title: 'El Despacho del Notario',
+  location: 'Despacho del Notario',
+  story_intro:
+    'El testamento fue alterado entre las nueve y las diez. Reconstruye con precisión quirúrgica.',
+  story_resolution: 'El original aparece en la caja fuerte. Caso cerrado.',
+  difficulty: 'hard',
+  duckOffset: 4,
+  roomNames: ['Bufete', 'Archivo Legal', 'Caja Fuerte', 'Antesala', 'Pasillo', 'Despacho 2'],
+  prerequisite_cases: ['case_018'],
+  tags: ['mansion', 'logica', 'notario'],
+});
+
+export const CASE_020: GameCase = makeGeneratedCase({
+  case_id: 'case_020',
+  seed: 'quackdoku-case-020',
+  title: 'El Invernadero Tropical',
+  location: 'Invernadero',
+  story_intro:
+    'Una orquídea rarísima fue cortada. Seis sospechosos, seis zonas, una sola verdad.',
+  story_resolution: 'La orquídea reaparece prensada en un libro. Astuto.',
+  difficulty: 'hard',
+  duckOffset: 6,
+  roomNames: ['Palmeras', 'Orquídeas', 'Helechos', 'Cactus', 'Estanque Cálido', 'Vivero'],
+  prerequisite_cases: ['case_019'],
+  tags: ['mansion', 'logica', 'invernadero'],
+});
+
+export const CASE_021: GameCase = makeGeneratedCase({
+  case_id: 'case_021',
+  seed: 'quackdoku-case-021',
+  title: 'La Torre del Reloj',
+  location: 'Torre del Reloj',
+  story_intro:
+    'El reloj se detuvo exactamente a las once en punto. Reconstruye los movimientos sin saltar ni una regla.',
+  story_resolution: 'El mecanismo vuelve a girar. Caso maestro.',
+  difficulty: 'hard',
+  duckOffset: 8,
+  roomNames: ['Esfera', 'Péndulo', 'Engranajes', 'Campana', 'Mirador', 'Hueco Reloj'],
+  prerequisite_cases: ['case_020'],
+  tags: ['mansion', 'logica', 'torre'],
+});
+
 // ─── CASO 6: El Jardín de Atrás (escenario con imagen) ──────────────────────
 // Murdoku 9x9 sobre la lamina pre-renderizada `assets/escenario1.png`.
 // Modela la logica de "The Backyard Garden": pistas A-H/V, objetos no
@@ -556,7 +783,29 @@ export const CASE_006: GameCase = {
   tags: ['mansion', 'jardin', 'escenario'],
 };
 
-export const ALL_CASES: GameCase[] = [CASE_001, CASE_002, CASE_003, CASE_004, CASE_005, CASE_006];
+export const ALL_CASES: GameCase[] = [
+  CASE_001,
+  CASE_002,
+  CASE_003,
+  CASE_004,
+  CASE_005,
+  CASE_006,
+  CASE_007,
+  CASE_008,
+  CASE_009,
+  CASE_010,
+  CASE_011,
+  CASE_012,
+  CASE_013,
+  CASE_014,
+  CASE_015,
+  CASE_016,
+  CASE_017,
+  CASE_018,
+  CASE_019,
+  CASE_020,
+  CASE_021,
+];
 
 export const CASE_MAP: Record<string, GameCase> = Object.fromEntries(
   ALL_CASES.map((c) => [c.case_id, c])

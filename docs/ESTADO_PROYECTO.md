@@ -57,6 +57,19 @@ Flag `hasSeenTutorial` en `userStore` (persistido). Acciones `markTutorialSeen()
 
 Boton "Repetir tutorial" disponible en pantalla de Perfil con confirmacion Alert.
 
+### Catalogo extendido (21 casos)
+
+Antes habia 6 casos. Ahora 21: `CASE_001` (autoral murdoku), `CASE_006` (escenario imagen murdoku 9x9) y 19 generados latin 6x6 vía `makeGeneratedCase(...)` con seeds fijos y nombres de sala tematicos.
+
+Mix difficulty: 1 hard autoral + 1 hard imagen + 5 easy (case_002, 007, 008, 009, 010, 011) + 6 medium (003, 004, 012, 013, 014, 015, 016, 017) + 4 hard (005, 018, 019, 020, 021). Cadena lineal vía `prerequisite_cases` (case_NNN requiere case_NNN-1).
+
+Nuevo test `lib/__tests__/catalogue.test.ts` (3 tests) verifica que los 19 generados:
+- pasan `validateBoardDefinition`.
+- son deterministas por seed (build A === build B).
+- escogen 6 patos unicos por caso desde `CATALOGUE_DUCK_POOL` (12 patos).
+
+Total tests: 24/24 pass. tsc clean.
+
 ## Pendiente inmediato slice MVP-Core (siguientes commits)
 
 - Onboarding extra: bandera en `(tabs)/index.tsx` o `case/[caseId]` para mostrar bienvenida fuera del primer caso.

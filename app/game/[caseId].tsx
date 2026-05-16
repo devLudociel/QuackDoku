@@ -41,6 +41,8 @@ import {
   onNeedHint,
 } from '../../lib/monetization';
 import type { GameMonetizationContext } from '../../lib/monetization';
+import { haptics } from '../../lib/haptics';
+import { playSfx } from '../../lib/sound';
 
 export default function GameScreen() {
   const { caseId, daily } = useLocalSearchParams<{ caseId: string; daily?: string }>();
@@ -356,6 +358,9 @@ export default function GameScreen() {
           onLifeLost('placement', context, result.duck_id, result.row, result.col);
         }
 
+        haptics.error();
+        playSfx('error');
+
         const key = result.row !== null && result.col !== null ? `${result.row},${result.col}` : fallbackKey;
         showTemporaryCells(setErrorCells, [key], 700);
         showTemporaryCells(setConflictCells, result.conflictCellKeys.length ? result.conflictCellKeys : [key], 1000);
@@ -365,6 +370,9 @@ export default function GameScreen() {
       }
 
       if (!result.success && result.conflicts.length > 0) {
+        haptics.warning();
+        playSfx('error');
+
         const key = result.row !== null && result.col !== null ? `${result.row},${result.col}` : fallbackKey;
         showTemporaryCells(setConflictCells, result.conflictCellKeys.length ? result.conflictCellKeys : [key], 1000);
         setFeedbackMessage(describeConflicts(result.conflicts));
@@ -373,6 +381,13 @@ export default function GameScreen() {
       }
 
       if (result.isCorrect && result.row !== null && result.col !== null) {
+        if (result.isComplete) {
+          haptics.success();
+          playSfx('victory');
+        } else {
+          haptics.medium();
+          playSfx('place');
+        }
         showTemporaryCells(setCorrectCells, [`${result.row},${result.col}`], 800);
         if (!result.isComplete) {
           setFeedbackMessage('Correcto.');
@@ -382,6 +397,8 @@ export default function GameScreen() {
       }
 
       if (result.success && playMode === 'murdoku') {
+        haptics.light();
+        playSfx('place');
         setFeedbackMessage(canSubmitSolution ? 'Listo para acusar.' : 'Sospechoso colocado.');
         clearFeedbackLater(1200);
       }
@@ -433,6 +450,8 @@ export default function GameScreen() {
   );
 
   const handleFocusDuck = useCallback((duckId: string) => {
+    haptics.selection();
+    playSfx('select');
     setActiveDuckId(duckId);
 
     const suspectClue = gameCase?.suspect_clues.find((clue) => clue.duck_id === duckId);
@@ -455,6 +474,16 @@ export default function GameScreen() {
 
   const handleCellLongPress = useCallback(() => {}, []);
 
+  const handleUndo = useCallback(() => {
+    if (history.length === 0) {
+      haptics.warning();
+      return;
+    }
+    haptics.light();
+    playSfx('undo');
+    undoLast();
+  }, [history.length, undoLast]);
+
   const handleBasicHint = useCallback(() => {
     const result = useBasicClue();
     if (!result) {
@@ -462,6 +491,7 @@ export default function GameScreen() {
       if (context) {
         onNeedHint('basic_hint', clues <= 0 ? 'no_clues' : 'no_target', context);
       }
+      haptics.warning();
       Alert.alert('Sin pistas', 'No hay pistas disponibles o no quedan celdas vacías.');
       return;
     }
@@ -471,6 +501,8 @@ export default function GameScreen() {
       onHintUsed('basic_hint', 'inventory', Math.max(0, clues - 1), context);
     }
 
+    haptics.medium();
+    playSfx('hint');
     showTemporaryCells(setHintCells, result.cellKeys, 2400);
     setFeedbackMessage(result.message);
     clearFeedbackLater(2600);
@@ -487,9 +519,13 @@ export default function GameScreen() {
       if (context) {
         onLifeLost('accusation', context);
       }
+      haptics.error();
+      playSfx('error');
     }
 
     if (result.isComplete) {
+      haptics.success();
+      playSfx('victory');
       return;
     }
 
@@ -615,7 +651,7 @@ export default function GameScreen() {
         duckTargetCount={duckTargetPlacementCount}
         onSelectDuck={handlePlaceDuck}
         onFocusDuck={handleFocusDuck}
-        onUndo={undoLast}
+        onUndo={handleUndo}
         onBasicHint={handleBasicHint}
         onSubmitSolution={handleSubmitSolution}
         canUndo={history.length > 0}

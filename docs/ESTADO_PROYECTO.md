@@ -1,6 +1,62 @@
 # Estado del Proyecto QuackDoku
 
-Fecha del checkpoint: 2026-05-07
+Fecha del checkpoint: 2026-05-16
+
+## Slice MVP-Core en curso (rama `feature/mvp-core`)
+
+Trabajo en marcha para llevar el juego a MVP publicable. Cambios ya aplicados:
+
+### Persistencia local (AsyncStorage + zustand persist)
+
+`@react-native-async-storage/async-storage` instalado. Los tres stores que guardan progreso del jugador ahora persisten entre sesiones:
+
+- `stores/userStore.ts` → key `quackdoku-user` v1. Persiste username, level, xp, monedas, gems, pistas, racha, casos completados, mejor tiempo, league pass.
+- `stores/dailyStore.ts` → key `quackdoku-daily` v1. Persiste `resultsByDate` (resultado del caso diario completado).
+- `stores/collectionStore.ts` → key `quackdoku-collection` v1. Persiste `unlockedDucks` y `favoriteDuck`.
+
+`gameStore` NO persiste — partida en curso es ephemeral por diseño MVP. Las partidas se reinician al cerrar la app (aceptable hasta tener autosave server-side).
+
+Cada `persist(...)` usa `partialize` para guardar solo el estado, no las funciones. Bumpear `version` si cambia el shape.
+
+### Feedback hapticos y SFX
+
+Wrappers nuevos:
+
+- `lib/haptics.ts` — wrapper sobre `expo-haptics` con auto-skip en web, toggle global (`setHapticsEnabled`), y métodos `light/medium/heavy/success/warning/error/selection`.
+- `lib/sound.ts` — wrapper sobre `expo-av`. Registro de SFX vía `registerSfx(event, source)` para evitar que Metro intente bundlear archivos inexistentes. `playSfx(event)` es no-op si el evento no fue registrado.
+
+Eventos SFX previstos: `place | error | victory | hint | undo | select | tick`.
+
+Carpeta `assets/sfx/` creada con README explicando qué archivos `.mp3` colocar. Mientras los archivos no existan, `playSfx` no hace nada (no crashea).
+
+`app/_layout.tsx` tiene el bloque `registerSfx(...)` comentado listo para descomentar cuando lleguen los archivos. Hace `unloadAllSfx()` al desmontar.
+
+Wireup en `app/game/[caseId].tsx`:
+- Colocación correcta → `haptics.medium()` + `playSfx('place')`. Caso resuelto → `haptics.success()` + `playSfx('victory')`.
+- Colocación inválida con vida perdida → `haptics.error()` + `playSfx('error')`.
+- Conflicto sin vida perdida → `haptics.warning()` + `playSfx('error')`.
+- Acusación correcta → `haptics.success()` + `playSfx('victory')`. Fallida → `haptics.error()` + `playSfx('error')`.
+- Pista usada → `haptics.medium()` + `playSfx('hint')`. Sin pistas → `haptics.warning()`.
+- Deshacer → `haptics.light()` + `playSfx('undo')`. Sin historial → `haptics.warning()`.
+- Seleccionar sospechoso → `haptics.selection()` + `playSfx('select')`.
+
+PENDIENTE: probar en dispositivo real, conseguir/grabar los 7 SFX, descomentar registro.
+
+## Pendiente inmediato slice MVP-Core (siguientes commits)
+
+- Onboarding/tutorial primer caso (interactivo, 3-4 pasos).
+- Sentry + analytics (PostHog o Amplitude).
+- 15 casos generados nuevos (seeds + nombres temáticos).
+- App icon adaptativo + splash + screenshots + privacy policy.
+- Backend mínimo Fastify para daily real + leaderboard.
+- Push notifications (`expo-notifications`).
+- AdMob rewarded adapter via contrato `lib/monetization.ts`.
+- RevenueCat IAP para skins.
+- i18n ES + EN.
+
+---
+
+Fecha del checkpoint anterior: 2026-05-07
 
 Este documento resume donde va el proyecto para que otro desarrollador, o su Codex, pueda entrar al codigo sin depender del historial de chat.
 

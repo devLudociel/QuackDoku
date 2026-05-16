@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DEFAULT_DUCKS } from '../constants/ducks';
 
 interface CollectionStore {
@@ -11,7 +13,9 @@ interface CollectionStore {
   getUnlockedCount: () => number;
 }
 
-export const useCollectionStore = create<CollectionStore>((set, get) => ({
+export const useCollectionStore = create<CollectionStore>()(
+  persist(
+    (set, get) => ({
   unlockedDucks: [...DEFAULT_DUCKS],
   favoriteDuck: 'duck_tophat',
 
@@ -31,4 +35,15 @@ export const useCollectionStore = create<CollectionStore>((set, get) => ({
   },
 
   getUnlockedCount: () => get().unlockedDucks.length,
-}));
+}),
+    {
+      name: 'quackdoku-collection',
+      storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      partialize: (state) => ({
+        unlockedDucks: state.unlockedDucks,
+        favoriteDuck: state.favoriteDuck,
+      }),
+    },
+  ),
+);

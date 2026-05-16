@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface UserStore {
   username: string;
@@ -57,7 +59,9 @@ export function getLevelProgress(level: number, xp: number) {
   };
 }
 
-export const useUserStore = create<UserStore>((set, get) => ({
+export const useUserStore = create<UserStore>()(
+  persist(
+    (set, get) => ({
   username: 'Detective',
   level: 1,
   xp: 0,
@@ -139,4 +143,28 @@ export const useUserStore = create<UserStore>((set, get) => ({
       set({ streakDays: 1, lastStreakDate: today });
     }
   },
-}));
+}),
+    {
+      name: 'quackdoku-user',
+      storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      partialize: (state) => ({
+        username: state.username,
+        level: state.level,
+        xp: state.xp,
+        xpToNextLevel: state.xpToNextLevel,
+        coins: state.coins,
+        gems: state.gems,
+        clues: state.clues,
+        streakDays: state.streakDays,
+        lastStreakDate: state.lastStreakDate,
+        favoriteDuck: state.favoriteDuck,
+        casesCompleted: state.casesCompleted,
+        totalPoints: state.totalPoints,
+        perfectCases: state.perfectCases,
+        bestTime: state.bestTime,
+        hasLeaguePass: state.hasLeaguePass,
+      }),
+    },
+  ),
+);

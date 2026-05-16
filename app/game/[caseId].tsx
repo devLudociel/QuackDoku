@@ -43,6 +43,7 @@ import {
 import type { GameMonetizationContext } from '../../lib/monetization';
 import { haptics } from '../../lib/haptics';
 import { playSfx } from '../../lib/sound';
+import { track } from '../../lib/telemetry';
 import TutorialOverlay, { DEFAULT_TUTORIAL_STEPS } from '../../components/tutorial/TutorialOverlay';
 
 export default function GameScreen() {
@@ -111,8 +112,17 @@ export default function GameScreen() {
       setFeedbackMessage(null);
       setCaseCluesExpanded(getBoardPlayMode(gameCase.board) === 'murdoku' && !gameCase.board.background_image);
 
+      track('case_started', {
+        case_id: gameCase.case_id,
+        title: gameCase.title,
+        difficulty: gameCase.difficulty,
+        play_mode: getBoardPlayMode(gameCase.board),
+        is_daily: isDailyRun,
+      });
+
       if (!hasSeenTutorial) {
         setTutorialVisible(true);
+        track('tutorial_started', { case_id: gameCase.case_id });
       }
     }
     return () => {
@@ -185,6 +195,30 @@ export default function GameScreen() {
           heartsLeft: hearts,
         }
       );
+
+      track('case_completed', {
+        case_id: gameCase.case_id,
+        title: gameCase.title,
+        difficulty: gameCase.difficulty,
+        play_mode: getBoardPlayMode(gameCase.board),
+        is_daily: isDailyRun,
+        stars,
+        elapsed_seconds: elapsedSeconds,
+        errors,
+        is_perfect: isPerfect,
+        hearts_left: hearts,
+        clues_left: clues,
+        coins_reward: rewardCoins,
+        xp_reward: rewardXp,
+      });
+      if (isDailyRun) {
+        track('daily_completed', {
+          case_id: gameCase.case_id,
+          stars,
+          elapsed_seconds: elapsedSeconds,
+          errors,
+        });
+      }
     }
   }, [
     phase,
@@ -366,6 +400,11 @@ export default function GameScreen() {
         if (context) {
           onLifeLost('placement', context, result.duck_id, result.row, result.col);
         }
+        track('life_lost', {
+          reason: 'placement',
+          case_id: gameCase?.case_id,
+          hearts_left: Math.max(0, hearts - 1),
+        });
 
         haptics.error();
         playSfx('error');
@@ -500,6 +539,10 @@ export default function GameScreen() {
       if (context) {
         onNeedHint('basic_hint', clues <= 0 ? 'no_clues' : 'no_target', context);
       }
+      track('hint_denied', {
+        reason: clues <= 0 ? 'no_clues' : 'no_target',
+        case_id: gameCase?.case_id,
+      });
       haptics.warning();
       Alert.alert('Sin pistas', 'No hay pistas disponibles o no quedan celdas vacías.');
       return;
@@ -509,6 +552,12 @@ export default function GameScreen() {
     if (context) {
       onHintUsed('basic_hint', 'inventory', Math.max(0, clues - 1), context);
     }
+    track('hint_used', {
+      type: 'basic_hint',
+      source: 'inventory',
+      case_id: gameCase?.case_id,
+      clues_left: Math.max(0, clues - 1),
+    });
 
     haptics.medium();
     playSfx('hint');
@@ -528,9 +577,19 @@ export default function GameScreen() {
       if (context) {
         onLifeLost('accusation', context);
       }
+      track('life_lost', {
+        reason: 'accusation',
+        case_id: gameCase?.case_id,
+        hearts_left: Math.max(0, hearts - 1),
+      });
       haptics.error();
       playSfx('error');
     }
+    track('accusation_submitted', {
+      case_id: gameCase?.case_id,
+      is_complete: result.isComplete,
+      lost_heart: result.lostHeart,
+    });
 
     if (result.isComplete) {
       haptics.success();
@@ -773,10 +832,12 @@ export default function GameScreen() {
         onComplete={() => {
           markTutorialSeen();
           setTutorialVisible(false);
+          track('tutorial_completed', { case_id: gameCase?.case_id });
         }}
         onSkip={() => {
           markTutorialSeen();
           setTutorialVisible(false);
+          track('tutorial_skipped', { case_id: gameCase?.case_id });
         }}
       />
     </SafeAreaView>

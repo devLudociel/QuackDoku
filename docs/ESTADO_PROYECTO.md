@@ -70,6 +70,53 @@ Nuevo test `lib/__tests__/catalogue.test.ts` (3 tests) verifica que los 19 gener
 
 Total tests: 24/24 pass. tsc clean.
 
+### Telemetria + crash reporting
+
+`lib/telemetry.ts` abstrae dos backends:
+
+- **PostHog** (`posthog-react-native`) — analytics de producto. Funciona en Expo Go.
+- **Sentry** (`@sentry/react-native` + config plugin en `app.json`) — crashes + breadcrumbs. Requiere dev build / EAS (no funciona en Expo Go; los calls hacen no-op silencioso).
+
+API publica:
+
+- `initTelemetry({ posthogApiKey, posthogHost, sentryDsn, environment, release, debug })` — idempotente.
+- `identifyUser(userId, traits)` / `setUserContext(traits)`.
+- `track(event, properties)` — eventos PostHog + breadcrumb Sentry.
+- `trackScreen(name, props)`.
+- `captureException(error, context)` / `captureMessage(text, level)`.
+- `flushTelemetry()` antes de cerrar / unmount.
+
+Tipo `TelemetryEvent` documenta el vocabulario aceptado (app_open, tutorial_*, case_*, hint_*, life_lost, daily_*, screen_view, error_boundary, etc.). Cada call esta envuelto en try/catch.
+
+Init en `app/_layout.tsx`:
+
+- Lee config via `EXPO_PUBLIC_POSTHOG_API_KEY`, `EXPO_PUBLIC_POSTHOG_HOST`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_ENV` (process.env fallback a Constants.expoConfig.extra).
+- Identifica al usuario con username + level + cases_completed + streak + has_league_pass.
+- Emite `app_open` con plataforma + version.
+- `flushTelemetry()` en unmount.
+
+ErrorBoundary global (`components/ErrorBoundary.tsx`) envuelve toda la app:
+
+- `getDerivedStateFromError` + `componentDidCatch` → `captureException` + `track('error_boundary')`.
+- Fallback UI claro con boton "Reintentar" que llama a `reset()`.
+
+Eventos cableados:
+
+- `app_open` — primer mount.
+- `tutorial_started` / `tutorial_completed` / `tutorial_skipped`.
+- `case_started` (case_id, title, difficulty, play_mode, is_daily).
+- `case_completed` (+ stars, elapsed, errors, hearts_left, clues_left, coins/xp reward).
+- `daily_completed` cuando is_daily=true.
+- `daily_shared` desde `DailyShareCard`.
+- `hint_used` (type, source, clues_left) / `hint_denied` (reason).
+- `life_lost` (reason: 'placement' | 'accusation', hearts_left).
+- `accusation_submitted` (is_complete, lost_heart).
+- `error_boundary` (message, name).
+
+Archivos nuevos: `lib/telemetry.ts`, `components/ErrorBoundary.tsx`, `.env.example`. `.gitignore` ignora `.env`, `.env.local`, `.sentryclirc`, `sentry.properties`. `app.json` plugins: `expo-router`, `expo-av`, `@sentry/react-native`.
+
+PENDIENTE: crear cuentas PostHog + Sentry, copiar `.env.example` a `.env`, rellenar claves reales, hacer dev build con EAS para activar Sentry nativo.
+
 ## Pendiente inmediato slice MVP-Core (siguientes commits)
 
 - Onboarding extra: bandera en `(tabs)/index.tsx` o `case/[caseId]` para mostrar bienvenida fuera del primer caso.

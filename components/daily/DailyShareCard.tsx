@@ -9,6 +9,7 @@ import {
 import { Colors, Fonts, Radius, Shadow, Spacing } from '../../constants/theme';
 import Button from '../ui/Button';
 import { buildDailyShareText, formatDailyTime } from '../../lib/daily';
+import { track } from '../../lib/telemetry';
 import DuckAvatar from '../ui/DuckAvatar';
 import { DUCK_MAP } from '../../constants/ducks';
 
@@ -35,6 +36,7 @@ export default function DailyShareCard({
   );
 
   const handleShare = async () => {
+    track('daily_shared', { day_number: dayNumber, stars, time_seconds: timeSeconds, errors });
     try {
       await Share.share({ message: shareText });
     } catch {

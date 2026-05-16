@@ -60,6 +60,7 @@ interface GameStore {
   toggleXMarkAt: (row: number, col: number) => boolean;
   clearCellAt: (row: number, col: number) => boolean;
   undoLast: () => void;
+  addClues: (amount: number) => void;
   useBasicClue: () => BasicClueResult | null;
   revealCellWithClue: () => RevealClueResult | null;
   toggleNotes: () => void;
@@ -557,6 +558,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       historyMoveLengths: historyMoveLengths.slice(0, -1),
       moveHistory: moveHistory.slice(0, moveHistoryLength),
     });
+  },
+
+  addClues: (amount) => {
+    set((state) => ({ clues: Math.max(0, state.clues + amount) }));
   },
 
   useBasicClue: () => {

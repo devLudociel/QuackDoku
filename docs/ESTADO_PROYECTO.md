@@ -147,7 +147,7 @@ Reactivar telemetria real cuando: (a) hagamos EAS dev build (Babel pipeline tran
 - Onboarding extra: bandera en `(tabs)/index.tsx` o `case/[caseId]` para mostrar bienvenida fuera del primer caso.
 - Sentry + analytics (PostHog o Amplitude).
 - 15 casos generados nuevos (seeds + nombres temáticos).
-- App icon adaptativo + splash + screenshots + privacy policy.
+- App icon adaptativo + splash + screenshots + privacy policy. Estado detallado en `docs/RELEASE_READINESS.md`.
 - Backend mínimo Fastify para daily real + leaderboard.
 - Push notifications (`expo-notifications`).
 - AdMob rewarded adapter via contrato `lib/monetization.ts`.

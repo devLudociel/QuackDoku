@@ -1,24 +1,22 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { InteractionManager, Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import Constants from 'expo-constants';
 import { Colors } from '../constants/theme';
 import { unloadAllSfx } from '../lib/sound';
-import { initTelemetry, track, flushTelemetry, identifyUser } from '../lib/telemetry';
-import ErrorBoundary from '../components/ErrorBoundary';
+import { flushTelemetry, identifyUser, initTelemetry, track } from '../lib/telemetry';
+import { configureNotificationHandler } from '../lib/notifications';
+import { initRevenueCat, refreshRevenueCatEntitlements } from '../lib/revenueCat';
 import { useUserStore } from '../stores/userStore';
+import ErrorBoundary from '../components/ErrorBoundary';
 // Once SFX files exist under assets/sfx (see assets/sfx/README.md),
 // import { registerSfx } from '../lib/sound'; and uncomment below.
 // import { registerSfx } from '../lib/sound';
 
-function readEnv(key: string): string | undefined {
-  const fromProcess = (process.env as Record<string, string | undefined>)[key];
-  if (fromProcess) return fromProcess;
-  const extra = (Constants.expoConfig?.extra ?? {}) as Record<string, unknown>;
-  const val = extra[key];
-  return typeof val === 'string' ? val : undefined;
-}
+const POSTHOG_API_KEY = process.env.EXPO_PUBLIC_POSTHOG_API_KEY;
+const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST;
+const APP_ENV = process.env.EXPO_PUBLIC_ENV ?? 'development';
 
 export default function RootLayout() {
   if (__DEV__) console.log('[layout] RootLayout render');
@@ -35,19 +33,16 @@ export default function RootLayout() {
     // registerSfx('select', require('../assets/sfx/select.mp3'));
     // registerSfx('tick', require('../assets/sfx/tick.mp3'));
 
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      (async () => {
-        try {
+    let bootTimer: ReturnType<typeof setTimeout> | null = null;
+    const bootTask = InteractionManager.runAfterInteractions(() => {
+      bootTimer = setTimeout(() => {
+        void (async () => {
           await initTelemetry({
-            posthogApiKey: readEnv('EXPO_PUBLIC_POSTHOG_API_KEY'),
-            posthogHost: readEnv('EXPO_PUBLIC_POSTHOG_HOST'),
-            sentryDsn: readEnv('EXPO_PUBLIC_SENTRY_DSN'),
-            environment: readEnv('EXPO_PUBLIC_ENV') ?? 'development',
-            release: Constants.expoConfig?.version,
+            posthogApiKey: POSTHOG_API_KEY,
+            posthogHost: POSTHOG_HOST,
+            environment: APP_ENV,
             debug: __DEV__,
           });
-          if (cancelled) return;
 
           const user = useUserStore.getState();
           identifyUser(user.username || 'anon', {
@@ -56,19 +51,21 @@ export default function RootLayout() {
             streak: user.streakDays,
             has_league_pass: user.hasLeaguePass,
           });
-          track('app_open', {
-            platform: Constants.platform?.ios ? 'ios' : Constants.platform?.android ? 'android' : 'web',
-            version: Constants.expoConfig?.version,
+          void configureNotificationHandler();
+          void initRevenueCat(user.username || 'anon').then((ready) => {
+            if (ready) void refreshRevenueCatEntitlements();
           });
-        } catch (err) {
-          if (__DEV__) console.warn('[layout] telemetry boot failed', err);
-        }
-      })();
-    }, 0);
+          track('app_open', {
+            platform: Platform.OS,
+          });
+          void flushTelemetry();
+        })();
+      }, 500);
+    });
 
     return () => {
-      cancelled = true;
-      clearTimeout(timer);
+      bootTask.cancel();
+      if (bootTimer) clearTimeout(bootTimer);
       try { flushTelemetry(); } catch {}
       try { unloadAllSfx(); } catch {}
     };

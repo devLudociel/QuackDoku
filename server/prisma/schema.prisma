@@ -1,0 +1,28 @@
+// Future production persistence. The current Fastify MVP uses a JSON file so
+// it can run without database setup. Keep this schema as the migration target.
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model DailyCaseResult {
+  id          String   @id @default(cuid())
+  installId   String
+  username    String
+  date        String
+  caseId      String
+  caseName    String
+  dayNumber   Int
+  stars       Int
+  timeSeconds Int
+  errors      Int
+  completedAt DateTime @default(now())
+
+  @@unique([installId, date])
+  @@index([date, stars, timeSeconds])
+}

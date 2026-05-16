@@ -44,6 +44,9 @@ import type { GameMonetizationContext } from '../../lib/monetization';
 import { haptics } from '../../lib/haptics';
 import { playSfx } from '../../lib/sound';
 import { track } from '../../lib/telemetry';
+import { submitRemoteDailyCompletion } from '../../lib/dailyApi';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { showRewardedAd } from '../../lib/ads';
 import TutorialOverlay, { DEFAULT_TUTORIAL_STEPS } from '../../components/tutorial/TutorialOverlay';
 
 export default function GameScreen() {
@@ -72,6 +75,7 @@ export default function GameScreen() {
     placeDuckAt,
     submitSolution,
     undoLast,
+    addClues: addGameClues,
     useBasicClue,
     pauseGame,
     resumeGame,
@@ -80,7 +84,8 @@ export default function GameScreen() {
     resetGame,
   } = useGameStore();
 
-  const { completeCaseReward, spendCoins, coins } = useUserStore();
+  const { completeCaseReward, spendCoins, coins, username } = useUserStore();
+  const installId = useSettingsStore((state) => state.installId);
   const hasSeenTutorial = useUserStore((state) => state.hasSeenTutorial);
   const markTutorialSeen = useUserStore((state) => state.markTutorialSeen);
   const completeDailyCase = useDailyStore((state) => state.completeDailyCase);
@@ -167,7 +172,7 @@ export default function GameScreen() {
 
       if (isDailyRun) {
         const dailyCase = getDailyCaseForDate();
-        completeDailyCase({
+        const completion = completeDailyCase({
           date: dailyCase.date,
           caseId: gameCase.case_id,
           caseName: gameCase.title,
@@ -176,6 +181,11 @@ export default function GameScreen() {
           timeSeconds: elapsedSeconds,
           errors,
           shareGrid: buildDailyShareGrid(gameCase.board, boardState, moveHistory),
+        });
+        void submitRemoteDailyCompletion({
+          ...completion,
+          installId,
+          username,
         });
       }
 
@@ -233,6 +243,8 @@ export default function GameScreen() {
     stars,
     boardState,
     moveHistory,
+    installId,
+    username,
   ]);
 
   const formatTime = (seconds: number) => {
@@ -532,7 +544,7 @@ export default function GameScreen() {
     undoLast();
   }, [history.length, undoLast]);
 
-  const handleBasicHint = useCallback(() => {
+  const handleBasicHint = useCallback(async () => {
     const result = useBasicClue();
     if (!result) {
       const context = getMonetizationContext();
@@ -543,6 +555,21 @@ export default function GameScreen() {
         reason: clues <= 0 ? 'no_clues' : 'no_target',
         case_id: gameCase?.case_id,
       });
+      if (clues <= 0) {
+        const adResult = await showRewardedAd('basic_hint');
+        if (adResult === 'earned') {
+          addGameClues(1);
+          if (context) {
+            onHintUsed('basic_hint', 'rewarded_ad', 1, context);
+          }
+          track('rewarded_ad_completed', {
+            placement: 'basic_hint',
+            case_id: gameCase?.case_id,
+          });
+          Alert.alert('Pista desbloqueada', 'Ganaste 1 pista. Toca Pista otra vez para usarla.');
+          return;
+        }
+      }
       haptics.warning();
       Alert.alert('Sin pistas', 'No hay pistas disponibles o no quedan celdas vacías.');
       return;
@@ -564,7 +591,7 @@ export default function GameScreen() {
     showTemporaryCells(setHintCells, result.cellKeys, 2400);
     setFeedbackMessage(result.message);
     clearFeedbackLater(2600);
-  }, [clues, getMonetizationContext, useBasicClue]);
+  }, [addGameClues, clues, gameCase?.case_id, getMonetizationContext, useBasicClue]);
 
   const handleSubmitSolution = useCallback(() => {
     const result = submitSolution();
@@ -617,7 +644,17 @@ export default function GameScreen() {
       if (context) {
         onContinueDenied('not_enough_coins', 100, coins, context);
       }
-      Alert.alert('Sin monedas', 'No tienes suficientes monedas para continuar.');
+      void showRewardedAd('continue_after_game_over').then((adResult) => {
+        if (adResult === 'earned') {
+          continueAfterGameOver(0);
+          track('rewarded_ad_completed', {
+            placement: 'continue_after_game_over',
+            case_id: gameCase?.case_id,
+          });
+          return;
+        }
+        Alert.alert('Sin monedas', 'No tienes suficientes monedas para continuar.');
+      });
     }
   };
 

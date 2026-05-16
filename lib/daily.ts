@@ -1,7 +1,7 @@
 import type { BoardData, BoardPlayMode, GameCase } from '../constants/cases';
 import type { BoardState } from './boardValidator';
-import { generatePuzzle, type PuzzleDifficulty } from './puzzleGenerator';
-import { puzzleToBoardData } from './puzzleToBoardData';
+import type { PuzzleDifficulty } from './puzzleGenerator';
+import { buildFastLatinBoard } from './fastLatinBoard';
 
 export interface DailyMove {
   row: number;
@@ -102,14 +102,13 @@ export function getDailyCase(date = new Date()): GameCase {
   const dayNumber = getDailyDayNumber(dateKey);
   const difficulty = getDailyDifficulty(dayNumber);
   const duckIds = dailyDuckIds(dayNumber);
-  const puzzle = generatePuzzle(`daily-${dateKey}`, {
-    size: 6,
-    playMode: 'latin',
-    difficulty,
+  const board = buildFastLatinBoard({
+    boardId: `daily_${dateKey}`,
+    seed: `daily-${dateKey}`,
     duckIds,
+    difficulty,
     roomNames: DAILY_ROOM_NAMES,
   });
-  const board = puzzleToBoardData(puzzle, { boardId: `daily_${dateKey}`, decorations: 2 });
   const flavor = DAILY_FLAVORS[(dayNumber - 1) % DAILY_FLAVORS.length];
 
   const value: GameCase = {
@@ -155,13 +154,22 @@ export function getDailyCaseForDate(date = new Date()): DailyCaseInfo {
 export function generateDailyBoard(date = new Date(), playMode: BoardPlayMode = 'latin'): BoardData {
   const dateKey = getUtcDateKey(date);
   const difficulty = getDailyDifficulty(getDailyDayNumber(dateKey));
-  const puzzle = generatePuzzle(`daily-${dateKey}`, {
-    size: 6,
-    playMode,
+  if (playMode !== 'latin') {
+    return buildFastLatinBoard({
+      boardId: `daily_${dateKey}`,
+      seed: `daily-${dateKey}`,
+      duckIds: dailyDuckIds(getDailyDayNumber(dateKey)),
+      difficulty,
+      roomNames: DAILY_ROOM_NAMES,
+    });
+  }
+  return buildFastLatinBoard({
+    boardId: `daily_${dateKey}`,
+    seed: `daily-${dateKey}`,
+    duckIds: dailyDuckIds(getDailyDayNumber(dateKey)),
     difficulty,
-    roomNames: playMode === 'latin' ? DAILY_ROOM_NAMES : undefined,
+    roomNames: DAILY_ROOM_NAMES,
   });
-  return puzzleToBoardData(puzzle, { boardId: `daily_${dateKey}`, decorations: 2 });
 }
 
 export function getSecondsToNextUtcMidnight(date = new Date()): number {

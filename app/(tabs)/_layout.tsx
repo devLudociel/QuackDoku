@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Colors } from '../../constants/theme';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useI18n } from '../../lib/i18n';
 
 function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
   return (
@@ -13,6 +14,7 @@ function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 28 : 0);
 
   return (
@@ -41,35 +43,35 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
+          title: t('tabs.home'),
           tabBarIcon: ({ focused }) => <TabIcon emoji="⌂" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="cases"
         options={{
-          title: 'Casos',
+          title: t('tabs.cases'),
           tabBarIcon: ({ focused }) => <TabIcon emoji="◈" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="characters"
         options={{
-          title: 'Patos',
+          title: t('tabs.ducks'),
           tabBarIcon: ({ focused }) => <TabIcon emoji="♟" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="shop"
         options={{
-          title: 'Tienda',
+          title: t('tabs.shop'),
           tabBarIcon: ({ focused }) => <TabIcon emoji="⚑" focused={focused} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
-          title: 'Perfil',
+          title: t('tabs.profile'),
           tabBarIcon: ({ focused }) => <TabIcon emoji="◎" focused={focused} />,
         }}
       />

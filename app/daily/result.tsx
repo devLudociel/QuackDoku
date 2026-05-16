@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -15,20 +15,35 @@ import DailyShareCard from '../../components/daily/DailyShareCard';
 import Button from '../../components/ui/Button';
 import DuckAvatar from '../../components/ui/DuckAvatar';
 import { DUCK_MAP } from '../../constants/ducks';
+import { fetchRemoteDailyLeaderboard } from '../../lib/dailyApi';
+import type { DailyLeaderboardEntry } from '../../stores/dailyStore';
+import { useI18n } from '../../lib/i18n';
 
 export default function DailyResultScreen() {
+  const { t } = useI18n();
   const daily = getDailyCaseForDate();
   const completion = useDailyStore((state) => state.resultsByDate[daily.date]);
   const getLeaderboardForDate = useDailyStore((state) => state.getLeaderboardForDate);
-  const leaderboard = getLeaderboardForDate(daily.date);
+  const [remoteLeaderboard, setRemoteLeaderboard] = useState<DailyLeaderboardEntry[] | null>(null);
+  const leaderboard = remoteLeaderboard ?? getLeaderboardForDate(daily.date);
+
+  useEffect(() => {
+    let mounted = true;
+    void fetchRemoteDailyLeaderboard(daily.date).then((entries) => {
+      if (mounted && entries) setRemoteLeaderboard(entries);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [daily.date]);
 
   if (!completion) {
     return (
       <SafeAreaView style={styles.emptySafe}>
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>Todavia no resolviste el caso diario</Text>
-          <Text style={styles.emptyText}>Completa el tablero de hoy para desbloquear el resultado compartible.</Text>
-          <Button label="Ir al caso diario" onPress={() => router.replace('/daily')} fullWidth />
+          <Text style={styles.emptyTitle}>{t('daily.notSolvedTitle')}</Text>
+          <Text style={styles.emptyText}>{t('daily.notSolvedText')}</Text>
+          <Button label={t('daily.goToDaily')} onPress={() => router.replace('/daily')} fullWidth />
         </View>
       </SafeAreaView>
     );
@@ -47,7 +62,7 @@ export default function DailyResultScreen() {
               <Pressable onPress={() => router.replace('/daily')} style={styles.backButton}>
                 <Text style={styles.backText}>←</Text>
               </Pressable>
-              <Text style={styles.screenTitle}>Resultado diario</Text>
+              <Text style={styles.screenTitle}>{t('daily.resultTitle')}</Text>
               <View style={styles.backButton} />
             </View>
 
@@ -61,13 +76,13 @@ export default function DailyResultScreen() {
             />
 
             <View style={styles.recordStrip}>
-              <Text style={styles.recordText}>Mejor tiempo personal</Text>
-              <Text style={styles.recordValue}>¡Nuevo record! →</Text>
+              <Text style={styles.recordText}>{t('daily.personalBest')}</Text>
+              <Text style={styles.recordValue}>{t('daily.newRecord')}</Text>
             </View>
 
             <View style={styles.leaderboardHeader}>
-              <Text style={styles.sectionTitle}>Ranking de hoy</Text>
-              <Text style={styles.sectionSub}>Top detectives del Caso #{daily.dayNumber}</Text>
+              <Text style={styles.sectionTitle}>{t('daily.rankingToday')}</Text>
+              <Text style={styles.sectionSub}>{t('daily.topCase', { day: daily.dayNumber })}</Text>
             </View>
           </View>
         }
@@ -87,12 +102,12 @@ export default function DailyResultScreen() {
         ListFooterComponent={
           <View style={styles.footerActions}>
             <Button
-              label="Siguiente caso →"
+              label={t('daily.nextCase')}
               onPress={() => router.replace('/(tabs)/cases')}
               fullWidth
             />
             <Button
-              label="⌂ Inicio"
+              label={t('daily.home')}
               variant="secondary"
               onPress={() => router.replace('/(tabs)')}
               fullWidth

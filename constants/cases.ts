@@ -1,6 +1,6 @@
 import type { ImageSourcePropType } from 'react-native';
-import { generatePuzzle, type PuzzleDifficulty } from '../lib/puzzleGenerator';
-import { puzzleToBoardData } from '../lib/puzzleToBoardData';
+import type { PuzzleDifficulty } from '../lib/puzzleGenerator';
+import { buildFastLatinBoard } from '../lib/fastLatinBoard';
 
 export interface BoardCell {
   row: number;
@@ -313,14 +313,13 @@ function makeGeneratedCase(spec: GeneratedCaseSpec): GameCase {
     { length: 6 },
     (_, i) => CATALOGUE_DUCK_POOL[(spec.duckOffset + i) % CATALOGUE_DUCK_POOL.length]
   );
-  const puzzle = generatePuzzle(spec.seed, {
-    size: 6,
-    playMode: 'latin',
-    difficulty: spec.difficulty,
+  const board = buildFastLatinBoard({
+    boardId: `${spec.case_id}_board`,
+    seed: spec.seed,
     duckIds,
+    difficulty: spec.difficulty,
     roomNames: spec.roomNames,
   });
-  const board = puzzleToBoardData(puzzle, { boardId: `${spec.case_id}_board`, decorations: 3 });
 
   return {
     case_id: spec.case_id,

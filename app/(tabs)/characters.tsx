@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   Pressable,
   Modal,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, Shadow, Fonts } from '../../constants/theme';
 import { DUCKS, Duck, DuckRarity } from '../../constants/ducks';
 import { useCollectionStore } from '../../stores/collectionStore';
 import DuckAvatar from '../../components/ui/DuckAvatar';
+import { flushTelemetry, track, trackScreen } from '../../lib/telemetry';
 
 const RARITY_COLORS: Record<DuckRarity, string> = {
   common: Colors.common,
@@ -49,6 +51,20 @@ export default function CharactersScreen() {
 
   const unlockedCount = unlockedDucks.length;
   const totalCount = DUCKS.length;
+
+  useFocusEffect(
+    useCallback(() => {
+      trackScreen('characters', {
+        unlocked_ducks: unlockedCount,
+        total_ducks: totalCount,
+      });
+      track('characters_opened', {
+        unlocked_ducks: unlockedCount,
+        total_ducks: totalCount,
+      });
+      void flushTelemetry();
+    }, [totalCount, unlockedCount])
+  );
 
   return (
     <SafeAreaView style={styles.safe}>

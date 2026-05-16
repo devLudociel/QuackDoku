@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
+  Pressable,
+  Alert,
+  Switch,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, Shadow, Fonts } from '../../constants/theme';
 import { getLevelProgress, useUserStore } from '../../stores/userStore';
@@ -13,8 +17,13 @@ import { DUCK_MAP } from '../../constants/ducks';
 import { DUCKS } from '../../constants/ducks';
 import DuckAvatar from '../../components/ui/DuckAvatar';
 import GameAsset from '../../components/ui/GameAsset';
+import { flushTelemetry, track, trackScreen } from '../../lib/telemetry';
+import { useI18n } from '../../lib/i18n';
+import { cancelDailyReminder, registerForPushNotifications, scheduleDailyReminder } from '../../lib/notifications';
+import { useSettingsStore } from '../../stores/settingsStore';
 
 export default function ProfileScreen() {
+  const { language, setLanguage, t } = useI18n();
   const {
     username,
     level,
@@ -28,8 +37,65 @@ export default function ProfileScreen() {
   } = useUserStore();
 
   const { favoriteDuck, unlockedDucks } = useCollectionStore();
+  const dailyReminderEnabled = useSettingsStore((state) => state.dailyReminderEnabled);
+  const setDailyReminderEnabled = useSettingsStore((state) => state.setDailyReminderEnabled);
+  const setPushToken = useSettingsStore((state) => state.setPushToken);
   const duck = DUCK_MAP[favoriteDuck];
   const xpProgress = getLevelProgress(level, xp);
+  const resetTutorial = useUserStore((state) => state.resetTutorial);
+
+  useFocusEffect(
+    useCallback(() => {
+      const properties = {
+        level,
+        cases_completed: casesCompleted,
+        perfect_cases: perfectCases,
+        streak: streakDays,
+        coins,
+        clues,
+        unlocked_ducks: unlockedDucks.length,
+        total_ducks: DUCKS.length,
+      };
+      trackScreen('profile', properties);
+      track('profile_opened', properties);
+      void flushTelemetry();
+    }, [casesCompleted, clues, coins, level, perfectCases, streakDays, unlockedDucks.length])
+  );
+
+  const handleResetTutorial = () => {
+    Alert.alert(
+      t('profile.repeatTutorialTitle'),
+      t('profile.repeatTutorialBody'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: 'Si',
+          onPress: () => {
+            resetTutorial();
+            Alert.alert(t('common.ready'), t('profile.repeatTutorialDone'));
+          },
+        },
+      ],
+    );
+  };
+
+  const handleDailyReminderToggle = async (enabled: boolean) => {
+    if (!enabled) {
+      await cancelDailyReminder();
+      setDailyReminderEnabled(false);
+      Alert.alert(t('common.ready'), t('profile.dailyReminderOff'));
+      return;
+    }
+
+    const token = await registerForPushNotifications();
+    setPushToken(token);
+    const scheduled = await scheduleDailyReminder();
+    setDailyReminderEnabled(scheduled);
+    Alert.alert(
+      t('common.ready'),
+      scheduled ? t('profile.dailyReminderOn') : t('profile.dailyReminderOff')
+    );
+  };
 
   const formatTime = (seconds: number | null) => {
     if (!seconds) return '—';
@@ -48,14 +114,14 @@ export default function ProfileScreen() {
           </View>
           <Text style={styles.username}>{username}</Text>
           <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>Nivel {level} · Detective</Text>
+            <Text style={styles.levelText}>{t('profile.levelDetective', { level })}</Text>
           </View>
         </View>
 
         {/* XP bar */}
         <View style={styles.xpCard}>
           <View style={styles.xpRow}>
-            <Text style={styles.xpLabel}>Experiencia</Text>
+            <Text style={styles.xpLabel}>{t('profile.experience')}</Text>
             <Text style={styles.xpValue}>{xpProgress.xpInLevel} / {xpProgress.xpToNextLevel} XP</Text>
           </View>
           <View style={styles.xpBarBg}>
@@ -65,19 +131,19 @@ export default function ProfileScreen() {
 
         {/* Stats */}
         <View style={styles.statsGrid}>
-          {[
-            { label: 'Casos resueltos', value: casesCompleted, icon: '📁' },
-            { label: 'Casos perfectos', value: perfectCases, icon: '⭐' },
-            { label: 'Racha actual', value: streakDays, icon: '🔥' },
-            { label: 'Mejor tiempo', value: formatTime(bestTime), icon: '⏱' },
-            { label: 'Monedas', value: coins, icon: '🪙' },
-            { label: 'Pistas', value: clues, icon: '💡' },
-            { label: 'Patos', value: `${unlockedDucks.length}/${DUCKS.length}`, icon: '🦆' },
+            {[
+            { key: 'cases', label: t('profile.casesSolved'), value: casesCompleted, icon: '📁' },
+            { key: 'perfect', label: t('profile.perfectCases'), value: perfectCases, icon: '⭐' },
+            { key: 'streak', label: t('profile.currentStreak'), value: streakDays, icon: '🔥' },
+            { key: 'time', label: t('profile.bestTime'), value: formatTime(bestTime), icon: '⏱' },
+            { key: 'coins', label: t('profile.coins'), value: coins, icon: '🪙' },
+            { key: 'clues', label: t('profile.clues'), value: clues, icon: '💡' },
+            { key: 'ducks', label: t('profile.ducks'), value: `${unlockedDucks.length}/${DUCKS.length}`, icon: '🦆' },
           ].map((stat) => (
             <View key={stat.label} style={styles.statCard}>
-              {stat.label === 'Monedas' ? (
+              {stat.key === 'coins' ? (
                 <GameAsset name="coin" size={28} style={styles.statAsset} />
-              ) : stat.label === 'Pistas' ? (
+              ) : stat.key === 'clues' ? (
                 <GameAsset name="clue" size={28} style={styles.statAsset} />
               ) : (
                 <Text style={styles.statIcon}>{stat.icon}</Text>
@@ -87,6 +153,51 @@ export default function ProfileScreen() {
             </View>
           ))}
         </View>
+
+        <View style={styles.settingsCard}>
+          <Text style={styles.settingsTitle}>{t('profile.settings')}</Text>
+          <View style={styles.settingRow}>
+            <View>
+              <Text style={styles.settingLabel}>{t('common.language')}</Text>
+              <Text style={styles.settingSub}>{language.toUpperCase()}</Text>
+            </View>
+            <View style={styles.segmented}>
+              {(['es', 'en'] as const).map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => setLanguage(item)}
+                  style={[styles.segment, language === item && styles.segmentActive]}
+                >
+                  <Text style={[styles.segmentText, language === item && styles.segmentTextActive]}>
+                    {item === 'es' ? t('common.spanish') : t('common.english')}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <View style={styles.settingRow}>
+            <View>
+              <Text style={styles.settingLabel}>{t('profile.dailyReminder')}</Text>
+              <Text style={styles.settingSub}>
+                {dailyReminderEnabled ? t('profile.dailyReminderEnabled') : t('profile.dailyReminderDisabled')}
+              </Text>
+            </View>
+            <Switch
+              value={dailyReminderEnabled}
+              onValueChange={handleDailyReminderToggle}
+              trackColor={{ false: Colors.grayLight, true: Colors.yellowSoft }}
+              thumbColor={dailyReminderEnabled ? Colors.yellow : Colors.grayMuted}
+            />
+          </View>
+        </View>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={handleResetTutorial}
+          style={({ pressed }) => [styles.tutorialBtn, pressed && styles.tutorialBtnPressed]}
+        >
+          <Text style={styles.tutorialBtnText}>{t('profile.repeatTutorial')}</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -193,5 +304,78 @@ const styles = StyleSheet.create({
     color: Colors.gray,
     textAlign: 'center',
     marginTop: 2,
+  },
+  settingsCard: {
+    marginHorizontal: Spacing.md,
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.white,
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    gap: Spacing.md,
+    ...Shadow.card,
+  },
+  settingsTitle: {
+    fontSize: Fonts.body,
+    fontWeight: '900',
+    color: Colors.blackPremium,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+  },
+  settingLabel: {
+    fontSize: Fonts.small,
+    fontWeight: '800',
+    color: Colors.blackPremium,
+  },
+  settingSub: {
+    marginTop: 2,
+    fontSize: Fonts.xs,
+    color: Colors.gray,
+    fontWeight: '700',
+  },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.badge,
+    padding: 3,
+  },
+  segment: {
+    minWidth: 42,
+    paddingVertical: 7,
+    borderRadius: Radius.badge,
+    alignItems: 'center',
+  },
+  segmentActive: {
+    backgroundColor: Colors.yellow,
+  },
+  segmentText: {
+    fontSize: Fonts.xs,
+    color: Colors.gray,
+    fontWeight: '900',
+  },
+  segmentTextActive: {
+    color: Colors.blackPremium,
+  },
+  tutorialBtn: {
+    alignSelf: 'center',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xl,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.grayLight,
+  },
+  tutorialBtnPressed: {
+    opacity: 0.75,
+  },
+  tutorialBtnText: {
+    color: Colors.gray,
+    fontSize: Fonts.small,
+    fontWeight: '600',
   },
 });

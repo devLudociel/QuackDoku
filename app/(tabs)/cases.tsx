@@ -11,6 +11,7 @@ import { router } from 'expo-router';
 import { Colors, Spacing, Radius, Shadow, Fonts } from '../../constants/theme';
 import { ALL_CASES, GameCase } from '../../constants/cases';
 import GameAsset from '../../components/ui/GameAsset';
+import { useI18n } from '../../lib/i18n';
 
 function DifficultyStars({ difficulty }: { difficulty: number }) {
   return (
@@ -46,11 +47,13 @@ function CaseCard({ item }: { item: GameCase }) {
 }
 
 export default function CasesScreen() {
+  const { t } = useI18n();
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.title}>📁 Casos</Text>
-        <Text style={styles.subtitle}>{ALL_CASES.length} caso(s) disponibles</Text>
+        <Text style={styles.title}>{t('cases.title')}</Text>
+        <Text style={styles.subtitle}>{t('cases.available', { count: ALL_CASES.length })}</Text>
       </View>
 
       <FlatList

@@ -1,6 +1,162 @@
 # Estado del Proyecto QuackDoku
 
-Fecha del checkpoint: 2026-05-07
+Fecha del checkpoint: 2026-05-16
+
+## Slice MVP-Core en curso (rama `feature/mvp-core`)
+
+Trabajo en marcha para llevar el juego a MVP publicable. Cambios ya aplicados:
+
+### Persistencia local (AsyncStorage + zustand persist)
+
+`@react-native-async-storage/async-storage` instalado. Los tres stores que guardan progreso del jugador ahora persisten entre sesiones:
+
+- `stores/userStore.ts` → key `quackdoku-user` v1. Persiste username, level, xp, monedas, gems, pistas, racha, casos completados, mejor tiempo, league pass.
+- `stores/dailyStore.ts` → key `quackdoku-daily` v1. Persiste `resultsByDate` (resultado del caso diario completado).
+- `stores/collectionStore.ts` → key `quackdoku-collection` v1. Persiste `unlockedDucks` y `favoriteDuck`.
+
+`gameStore` NO persiste — partida en curso es ephemeral por diseño MVP. Las partidas se reinician al cerrar la app (aceptable hasta tener autosave server-side).
+
+Cada `persist(...)` usa `partialize` para guardar solo el estado, no las funciones. Bumpear `version` si cambia el shape.
+
+### Feedback hapticos y SFX
+
+Wrappers nuevos:
+
+- `lib/haptics.ts` — wrapper sobre `expo-haptics` con auto-skip en web, toggle global (`setHapticsEnabled`), y métodos `light/medium/heavy/success/warning/error/selection`.
+- `lib/sound.ts` — wrapper sobre `expo-av`. Registro de SFX vía `registerSfx(event, source)` para evitar que Metro intente bundlear archivos inexistentes. `playSfx(event)` es no-op si el evento no fue registrado.
+
+Eventos SFX previstos: `place | error | victory | hint | undo | select | tick`.
+
+Carpeta `assets/sfx/` creada con README explicando qué archivos `.mp3` colocar. Mientras los archivos no existan, `playSfx` no hace nada (no crashea).
+
+`app/_layout.tsx` tiene el bloque `registerSfx(...)` comentado listo para descomentar cuando lleguen los archivos. Hace `unloadAllSfx()` al desmontar.
+
+Wireup en `app/game/[caseId].tsx`:
+- Colocación correcta → `haptics.medium()` + `playSfx('place')`. Caso resuelto → `haptics.success()` + `playSfx('victory')`.
+- Colocación inválida con vida perdida → `haptics.error()` + `playSfx('error')`.
+- Conflicto sin vida perdida → `haptics.warning()` + `playSfx('error')`.
+- Acusación correcta → `haptics.success()` + `playSfx('victory')`. Fallida → `haptics.error()` + `playSfx('error')`.
+- Pista usada → `haptics.medium()` + `playSfx('hint')`. Sin pistas → `haptics.warning()`.
+- Deshacer → `haptics.light()` + `playSfx('undo')`. Sin historial → `haptics.warning()`.
+- Seleccionar sospechoso → `haptics.selection()` + `playSfx('select')`.
+
+PENDIENTE: probar en dispositivo real, conseguir/grabar los 7 SFX, descomentar registro.
+
+### Tutorial onboarding
+
+Primer arranque (o reset manual) muestra un overlay modal de 4 pasos dentro de la pantalla de juego:
+
+- Bienvenida + explicacion de regla sudoku-de-patos.
+- Como seleccionar un sospechoso.
+- Como colocar en celda.
+- Pistas y boton "Acusar".
+
+Componente `components/tutorial/TutorialOverlay.tsx` (RN `Modal` transparente + indicador de pasos + skip). Steps por defecto exportados como `DEFAULT_TUTORIAL_STEPS`.
+
+Flag `hasSeenTutorial` en `userStore` (persistido). Acciones `markTutorialSeen()` y `resetTutorial()`. El timer del juego pausa mientras el overlay esta visible.
+
+Boton "Repetir tutorial" disponible en pantalla de Perfil con confirmacion Alert.
+
+### Catalogo extendido (21 casos)
+
+Antes habia 6 casos. Ahora 21: `CASE_001` (autoral murdoku), `CASE_006` (escenario imagen murdoku 9x9) y 19 generados latin 6x6 vía `makeGeneratedCase(...)` con seeds fijos y nombres de sala tematicos.
+
+Mix difficulty: 1 hard autoral + 1 hard imagen + 5 easy (case_002, 007, 008, 009, 010, 011) + 6 medium (003, 004, 012, 013, 014, 015, 016, 017) + 4 hard (005, 018, 019, 020, 021). Cadena lineal vía `prerequisite_cases` (case_NNN requiere case_NNN-1).
+
+Nuevo test `lib/__tests__/catalogue.test.ts` (3 tests) verifica que los 19 generados:
+- pasan `validateBoardDefinition`.
+- son deterministas por seed (build A === build B).
+- escogen 6 patos unicos por caso desde `CATALOGUE_DUCK_POOL` (12 patos).
+
+Total tests: 24/24 pass. tsc clean.
+
+### Telemetria + crash reporting
+
+`lib/telemetry.ts` abstrae dos backends:
+
+- **PostHog** (`posthog-react-native`) — analytics de producto. Funciona en Expo Go.
+- **Sentry** (`@sentry/react-native` + config plugin en `app.json`) — crashes + breadcrumbs. Requiere dev build / EAS (no funciona en Expo Go; los calls hacen no-op silencioso).
+
+API publica:
+
+- `initTelemetry({ posthogApiKey, posthogHost, sentryDsn, environment, release, debug })` — idempotente.
+- `identifyUser(userId, traits)` / `setUserContext(traits)`.
+- `track(event, properties)` — eventos PostHog + breadcrumb Sentry.
+- `trackScreen(name, props)`.
+- `captureException(error, context)` / `captureMessage(text, level)`.
+- `flushTelemetry()` antes de cerrar / unmount.
+
+Tipo `TelemetryEvent` documenta el vocabulario aceptado (app_open, tutorial_*, case_*, hint_*, life_lost, daily_*, screen_view, error_boundary, etc.). Cada call esta envuelto en try/catch.
+
+Init en `app/_layout.tsx`:
+
+- Lee config via `EXPO_PUBLIC_POSTHOG_API_KEY`, `EXPO_PUBLIC_POSTHOG_HOST`, `EXPO_PUBLIC_SENTRY_DSN`, `EXPO_PUBLIC_ENV` (process.env fallback a Constants.expoConfig.extra).
+- Identifica al usuario con username + level + cases_completed + streak + has_league_pass.
+- Emite `app_open` con plataforma + version.
+- `flushTelemetry()` en unmount.
+
+ErrorBoundary global (`components/ErrorBoundary.tsx`) envuelve toda la app:
+
+- `getDerivedStateFromError` + `componentDidCatch` → `captureException` + `track('error_boundary')`.
+- Fallback UI claro con boton "Reintentar" que llama a `reset()`.
+
+Eventos cableados:
+
+- `app_open` — primer mount.
+- `tutorial_started` / `tutorial_completed` / `tutorial_skipped`.
+- `case_started` (case_id, title, difficulty, play_mode, is_daily).
+- `case_completed` (+ stars, elapsed, errors, hearts_left, clues_left, coins/xp reward).
+- `daily_completed` cuando is_daily=true.
+- `daily_shared` desde `DailyShareCard`.
+- `hint_used` (type, source, clues_left) / `hint_denied` (reason).
+- `life_lost` (reason: 'placement' | 'accusation', hearts_left).
+- `accusation_submitted` (is_complete, lost_heart).
+- `error_boundary` (message, name).
+
+Archivos nuevos: `lib/telemetry.ts`, `components/ErrorBoundary.tsx`, `.env.example`. `.gitignore` ignora `.env`, `.env.local`, `.sentryclirc`, `sentry.properties`. `app.json` plugins: `expo-router`, `expo-av`, `@sentry/react-native`.
+
+PENDIENTE: crear cuentas PostHog + Sentry, copiar `.env.example` a `.env`, rellenar claves reales, hacer dev build con EAS para activar Sentry nativo.
+
+### Telemetria → STUB en MVP (Expo Go incompat)
+
+Al intentar arrancar en Expo Go con SDK 54 detectamos que `posthog-react-native@4` y `@sentry/react-native@7` usan sintaxis `import.meta` (ESM moderno) que Hermes no soporta sin transform Babel adicional. Bundle compilaba pero crasheaba silenciosamente en device.
+
+Decision: degradar `lib/telemetry.ts` a **stub no-op** (mantiene API publica `track/identify/captureException/...` pero solo loguea a consola en `__DEV__`). Paquetes desinstalados de `package.json`:
+- `posthog-react-native`
+- `@sentry/react-native`
+- peer deps `expo-application` / `expo-device` / `expo-localization` (no las usabamos)
+
+Plugin `@sentry/react-native` quitado de `app.json`. `.env` con keys reales conservado para cuando se reactiven los backends.
+
+Reactivar telemetria real cuando: (a) hagamos EAS dev build (Babel pipeline transforma `import.meta`), o (b) downgrade a `posthog-react-native@3.x` + `@sentry/react-native@5.x`, o (c) anadir plugin Babel `@babel/plugin-syntax-import-meta`. Codigo de la implementacion real se preserva en commit `e8e3d1a`.
+
+### Babel + react-native-worklets/plugin
+
+`react-native-reanimated@4.1.1` (SDK 54 default) requiere registrar `react-native-worklets/plugin` en `babel.config.js`. Sin el, mobile crashea silenciosamente al cargar reanimated (web no usa el modulo nativo, por eso ahi cargaba).
+
+`babel.config.js` ahora incluye el plugin. Cambios en babel obligan `npx expo start --clear` para invalidar cache de transformaciones.
+
+### Rutas Expo Router
+
+`app/_layout.tsx` declaraba `Stack.Screen name="daily"` pero la carpeta `app/daily/` no exporta layout — solo `index.tsx` y `result.tsx`. Warning de expo-router. Corregido a:
+- `Stack.Screen name="daily/index"`
+- `Stack.Screen name="daily/result"`
+
+## Pendiente inmediato slice MVP-Core (siguientes commits)
+
+- Onboarding extra: bandera en `(tabs)/index.tsx` o `case/[caseId]` para mostrar bienvenida fuera del primer caso.
+- Sentry + analytics (PostHog o Amplitude).
+- 15 casos generados nuevos (seeds + nombres temáticos).
+- App icon adaptativo + splash + screenshots + privacy policy. Estado detallado en `docs/RELEASE_READINESS.md`.
+- Backend mínimo Fastify para daily real + leaderboard.
+- Push notifications (`expo-notifications`).
+- AdMob rewarded adapter via contrato `lib/monetization.ts`.
+- RevenueCat IAP para skins.
+- i18n ES + EN.
+
+---
+
+Fecha del checkpoint anterior: 2026-05-07
 
 Este documento resume donde va el proyecto para que otro desarrollador, o su Codex, pueda entrar al codigo sin depender del historial de chat.
 

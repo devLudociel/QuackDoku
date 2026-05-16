@@ -10,12 +10,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Colors, Fonts, Radius, Shadow, Spacing } from '../../constants/theme';
 import { getLevelProgress, useUserStore } from '../../stores/userStore';
-import { ALL_CASES } from '../../constants/cases';
 import { formatCountdown, getDailyCaseForDate } from '../../lib/daily';
 import { useCountdownToMidnight } from '../../hooks/useCountdownToMidnight';
-import GameAsset from '../../components/ui/GameAsset';
-import DuckAvatar from '../../components/ui/DuckAvatar';
-import { DUCK_MAP } from '../../constants/ducks';
 import { onLeaguePassOpportunity } from '../../lib/monetization';
 
 const ACTIVE_CASES = [
@@ -29,7 +25,6 @@ export default function HomeScreen() {
   const xpProgress = getLevelProgress(level, xp);
   const daily = getDailyCaseForDate();
   const secondsLeft = useCountdownToMidnight();
-  const heroDuck = DUCK_MAP.duck_tophat;
 
   const formatBestTime = (seconds: number | null) => {
     if (!seconds) return '3:12';
@@ -51,7 +46,7 @@ export default function HomeScreen() {
             <Text style={styles.username}>{username}_Mx 🦆</Text>
           </View>
           <View style={styles.avatarWrap}>
-            <DuckAvatar duck={heroDuck} size={44} />
+            <Text style={styles.avatarEmoji}>🎩</Text>
             <View style={styles.avatarBadge}>
               <Text style={styles.avatarBadgeText}>3</Text>
             </View>
@@ -78,7 +73,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.heroDuck}>
-            <DuckAvatar duck={heroDuck} size={94} />
+            <Text style={styles.heroDuckEmoji}>🦆</Text>
           </View>
           <Text style={styles.heroTimer}>⏱ {formatCountdown(secondsLeft)}</Text>
         </Pressable>
@@ -102,7 +97,7 @@ export default function HomeScreen() {
               </Text>
             </View>
             <Text style={styles.leagueRewardText}>+200</Text>
-            <GameAsset name="coin" size={14} />
+            <Text style={styles.leagueRewardIcon}>🪙</Text>
             <Text style={styles.leagueRewardSub}>si top 10</Text>
           </View>
         </Pressable>
@@ -131,10 +126,10 @@ export default function HomeScreen() {
             <Pressable
               key={item.title}
               style={styles.caseRow}
-              onPress={() => router.push(index === 0 ? `/case/${ALL_CASES[0].case_id}` : '/(tabs)/cases')}
+              onPress={() => router.push(index === 0 ? '/case/case_001' : '/(tabs)/cases')}
             >
               <View style={styles.caseThumb}>
-                <DuckAvatar duck={index === 1 ? DUCK_MAP.duck_plum : heroDuck} size={34} />
+                <Text style={styles.caseThumbEmoji}>{index === 1 ? '👒' : '🎩'}</Text>
               </View>
               <View style={styles.caseText}>
                 <Text style={styles.caseTitle}>{item.title}</Text>
@@ -197,6 +192,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
+  },
+  avatarEmoji: {
+    fontSize: 28,
   },
   avatarBadge: {
     position: 'absolute',
@@ -299,6 +297,9 @@ const styles = StyleSheet.create({
     bottom: -14,
     opacity: 0.62,
   },
+  heroDuckEmoji: {
+    fontSize: 84,
+  },
   heroTimer: {
     position: 'absolute',
     top: Spacing.sm,
@@ -385,6 +386,9 @@ const styles = StyleSheet.create({
     fontSize: Fonts.small,
     fontWeight: '900',
   },
+  leagueRewardIcon: {
+    fontSize: 14,
+  },
   leagueRewardSub: {
     color: Colors.gray,
     fontSize: 10,
@@ -446,6 +450,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.yellowSoft,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  caseThumbEmoji: {
+    fontSize: 26,
   },
   caseText: {
     flex: 1,

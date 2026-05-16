@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { generateDailySeed } from '../lib/daily';
 
 export interface DailyCompletion {
@@ -82,7 +84,9 @@ function rankEntries(entries: Omit<DailyLeaderboardEntry, 'rank'>[]): DailyLeade
     .map((entry, index) => ({ ...entry, rank: index + 1 }));
 }
 
-export const useDailyStore = create<DailyStore>((set, get) => ({
+export const useDailyStore = create<DailyStore>()(
+  persist(
+    (set, get) => ({
   resultsByDate: {},
 
   completeDailyCase: (input) => {
@@ -122,4 +126,12 @@ export const useDailyStore = create<DailyStore>((set, get) => ({
 
     return rankEntries(entries).slice(0, 20);
   },
-}));
+}),
+    {
+      name: 'quackdoku-daily',
+      storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      partialize: (state) => ({ resultsByDate: state.resultsByDate }),
+    },
+  ),
+);

@@ -41,6 +41,13 @@ import {
   onNeedHint,
 } from '../../lib/monetization';
 import type { GameMonetizationContext } from '../../lib/monetization';
+import { haptics } from '../../lib/haptics';
+import { playSfx } from '../../lib/sound';
+import { track } from '../../lib/telemetry';
+import { submitRemoteDailyCompletion } from '../../lib/dailyApi';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { showRewardedAd } from '../../lib/ads';
+import TutorialOverlay, { DEFAULT_TUTORIAL_STEPS } from '../../components/tutorial/TutorialOverlay';
 
 export default function GameScreen() {
   const { caseId, daily } = useLocalSearchParams<{ caseId: string; daily?: string }>();
@@ -68,6 +75,7 @@ export default function GameScreen() {
     placeDuckAt,
     submitSolution,
     undoLast,
+    addClues: addGameClues,
     useBasicClue,
     pauseGame,
     resumeGame,
@@ -76,8 +84,13 @@ export default function GameScreen() {
     resetGame,
   } = useGameStore();
 
-  const { completeCaseReward, spendCoins, coins } = useUserStore();
+  const { completeCaseReward, spendCoins, coins, username } = useUserStore();
+  const installId = useSettingsStore((state) => state.installId);
+  const hasSeenTutorial = useUserStore((state) => state.hasSeenTutorial);
+  const markTutorialSeen = useUserStore((state) => state.markTutorialSeen);
   const completeDailyCase = useDailyStore((state) => state.completeDailyCase);
+
+  const [tutorialVisible, setTutorialVisible] = useState(false);
 
   const [errorCells, setErrorCells] = useState<Set<string>>(new Set());
   const [conflictCells, setConflictCells] = useState<Set<string>>(new Set());
@@ -103,6 +116,19 @@ export default function GameScreen() {
       setActiveDuckId(null);
       setFeedbackMessage(null);
       setCaseCluesExpanded(getBoardPlayMode(gameCase.board) === 'murdoku' && !gameCase.board.background_image);
+
+      track('case_started', {
+        case_id: gameCase.case_id,
+        title: gameCase.title,
+        difficulty: gameCase.difficulty,
+        play_mode: getBoardPlayMode(gameCase.board),
+        is_daily: isDailyRun,
+      });
+
+      if (!hasSeenTutorial) {
+        setTutorialVisible(true);
+        track('tutorial_started', { case_id: gameCase.case_id });
+      }
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -119,7 +145,7 @@ export default function GameScreen() {
 
   // Timer
   useEffect(() => {
-    if (phase === 'playing') {
+    if (phase === 'playing' && !tutorialVisible) {
       timerRef.current = setInterval(tick, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -127,7 +153,7 @@ export default function GameScreen() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [phase]);
+  }, [phase, tutorialVisible]);
 
   // Reward on completion
   useEffect(() => {
@@ -146,7 +172,7 @@ export default function GameScreen() {
 
       if (isDailyRun) {
         const dailyCase = getDailyCaseForDate();
-        completeDailyCase({
+        const completion = completeDailyCase({
           date: dailyCase.date,
           caseId: gameCase.case_id,
           caseName: gameCase.title,
@@ -155,6 +181,11 @@ export default function GameScreen() {
           timeSeconds: elapsedSeconds,
           errors,
           shareGrid: buildDailyShareGrid(gameCase.board, boardState, moveHistory),
+        });
+        void submitRemoteDailyCompletion({
+          ...completion,
+          installId,
+          username,
         });
       }
 
@@ -174,6 +205,30 @@ export default function GameScreen() {
           heartsLeft: hearts,
         }
       );
+
+      track('case_completed', {
+        case_id: gameCase.case_id,
+        title: gameCase.title,
+        difficulty: gameCase.difficulty,
+        play_mode: getBoardPlayMode(gameCase.board),
+        is_daily: isDailyRun,
+        stars,
+        elapsed_seconds: elapsedSeconds,
+        errors,
+        is_perfect: isPerfect,
+        hearts_left: hearts,
+        clues_left: clues,
+        coins_reward: rewardCoins,
+        xp_reward: rewardXp,
+      });
+      if (isDailyRun) {
+        track('daily_completed', {
+          case_id: gameCase.case_id,
+          stars,
+          elapsed_seconds: elapsedSeconds,
+          errors,
+        });
+      }
     }
   }, [
     phase,
@@ -188,6 +243,8 @@ export default function GameScreen() {
     stars,
     boardState,
     moveHistory,
+    installId,
+    username,
   ]);
 
   const formatTime = (seconds: number) => {
@@ -355,6 +412,14 @@ export default function GameScreen() {
         if (context) {
           onLifeLost('placement', context, result.duck_id, result.row, result.col);
         }
+        track('life_lost', {
+          reason: 'placement',
+          case_id: gameCase?.case_id,
+          hearts_left: Math.max(0, hearts - 1),
+        });
+
+        haptics.error();
+        playSfx('error');
 
         const key = result.row !== null && result.col !== null ? `${result.row},${result.col}` : fallbackKey;
         showTemporaryCells(setErrorCells, [key], 700);
@@ -365,6 +430,9 @@ export default function GameScreen() {
       }
 
       if (!result.success && result.conflicts.length > 0) {
+        haptics.warning();
+        playSfx('error');
+
         const key = result.row !== null && result.col !== null ? `${result.row},${result.col}` : fallbackKey;
         showTemporaryCells(setConflictCells, result.conflictCellKeys.length ? result.conflictCellKeys : [key], 1000);
         setFeedbackMessage(describeConflicts(result.conflicts));
@@ -373,6 +441,13 @@ export default function GameScreen() {
       }
 
       if (result.isCorrect && result.row !== null && result.col !== null) {
+        if (result.isComplete) {
+          haptics.success();
+          playSfx('victory');
+        } else {
+          haptics.medium();
+          playSfx('place');
+        }
         showTemporaryCells(setCorrectCells, [`${result.row},${result.col}`], 800);
         if (!result.isComplete) {
           setFeedbackMessage('Correcto.');
@@ -382,6 +457,8 @@ export default function GameScreen() {
       }
 
       if (result.success && playMode === 'murdoku') {
+        haptics.light();
+        playSfx('place');
         setFeedbackMessage(canSubmitSolution ? 'Listo para acusar.' : 'Sospechoso colocado.');
         clearFeedbackLater(1200);
       }
@@ -433,6 +510,8 @@ export default function GameScreen() {
   );
 
   const handleFocusDuck = useCallback((duckId: string) => {
+    haptics.selection();
+    playSfx('select');
     setActiveDuckId(duckId);
 
     const suspectClue = gameCase?.suspect_clues.find((clue) => clue.duck_id === duckId);
@@ -455,13 +534,43 @@ export default function GameScreen() {
 
   const handleCellLongPress = useCallback(() => {}, []);
 
-  const handleBasicHint = useCallback(() => {
+  const handleUndo = useCallback(() => {
+    if (history.length === 0) {
+      haptics.warning();
+      return;
+    }
+    haptics.light();
+    playSfx('undo');
+    undoLast();
+  }, [history.length, undoLast]);
+
+  const handleBasicHint = useCallback(async () => {
     const result = useBasicClue();
     if (!result) {
       const context = getMonetizationContext();
       if (context) {
         onNeedHint('basic_hint', clues <= 0 ? 'no_clues' : 'no_target', context);
       }
+      track('hint_denied', {
+        reason: clues <= 0 ? 'no_clues' : 'no_target',
+        case_id: gameCase?.case_id,
+      });
+      if (clues <= 0) {
+        const adResult = await showRewardedAd('basic_hint');
+        if (adResult === 'earned') {
+          addGameClues(1);
+          if (context) {
+            onHintUsed('basic_hint', 'rewarded_ad', 1, context);
+          }
+          track('rewarded_ad_completed', {
+            placement: 'basic_hint',
+            case_id: gameCase?.case_id,
+          });
+          Alert.alert('Pista desbloqueada', 'Ganaste 1 pista. Toca Pista otra vez para usarla.');
+          return;
+        }
+      }
+      haptics.warning();
       Alert.alert('Sin pistas', 'No hay pistas disponibles o no quedan celdas vacías.');
       return;
     }
@@ -470,11 +579,19 @@ export default function GameScreen() {
     if (context) {
       onHintUsed('basic_hint', 'inventory', Math.max(0, clues - 1), context);
     }
+    track('hint_used', {
+      type: 'basic_hint',
+      source: 'inventory',
+      case_id: gameCase?.case_id,
+      clues_left: Math.max(0, clues - 1),
+    });
 
+    haptics.medium();
+    playSfx('hint');
     showTemporaryCells(setHintCells, result.cellKeys, 2400);
     setFeedbackMessage(result.message);
     clearFeedbackLater(2600);
-  }, [clues, getMonetizationContext, useBasicClue]);
+  }, [addGameClues, clues, gameCase?.case_id, getMonetizationContext, useBasicClue]);
 
   const handleSubmitSolution = useCallback(() => {
     const result = submitSolution();
@@ -487,9 +604,23 @@ export default function GameScreen() {
       if (context) {
         onLifeLost('accusation', context);
       }
+      track('life_lost', {
+        reason: 'accusation',
+        case_id: gameCase?.case_id,
+        hearts_left: Math.max(0, hearts - 1),
+      });
+      haptics.error();
+      playSfx('error');
     }
+    track('accusation_submitted', {
+      case_id: gameCase?.case_id,
+      is_complete: result.isComplete,
+      lost_heart: result.lostHeart,
+    });
 
     if (result.isComplete) {
+      haptics.success();
+      playSfx('victory');
       return;
     }
 
@@ -513,7 +644,17 @@ export default function GameScreen() {
       if (context) {
         onContinueDenied('not_enough_coins', 100, coins, context);
       }
-      Alert.alert('Sin monedas', 'No tienes suficientes monedas para continuar.');
+      void showRewardedAd('continue_after_game_over').then((adResult) => {
+        if (adResult === 'earned') {
+          continueAfterGameOver(0);
+          track('rewarded_ad_completed', {
+            placement: 'continue_after_game_over',
+            case_id: gameCase?.case_id,
+          });
+          return;
+        }
+        Alert.alert('Sin monedas', 'No tienes suficientes monedas para continuar.');
+      });
     }
   };
 
@@ -615,7 +756,7 @@ export default function GameScreen() {
         duckTargetCount={duckTargetPlacementCount}
         onSelectDuck={handlePlaceDuck}
         onFocusDuck={handleFocusDuck}
-        onUndo={undoLast}
+        onUndo={handleUndo}
         onBasicHint={handleBasicHint}
         onSubmitSolution={handleSubmitSolution}
         canUndo={history.length > 0}
@@ -721,6 +862,21 @@ export default function GameScreen() {
           </View>
         </View>
       </Modal>
+
+      <TutorialOverlay
+        visible={tutorialVisible}
+        steps={DEFAULT_TUTORIAL_STEPS}
+        onComplete={() => {
+          markTutorialSeen();
+          setTutorialVisible(false);
+          track('tutorial_completed', { case_id: gameCase?.case_id });
+        }}
+        onSkip={() => {
+          markTutorialSeen();
+          setTutorialVisible(false);
+          track('tutorial_skipped', { case_id: gameCase?.case_id });
+        }}
+      />
     </SafeAreaView>
   );
 }

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,10 +7,14 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, Shadow, Fonts } from '../../constants/theme';
 import GameAsset from '../../components/ui/GameAsset';
 import type { AppAssetName } from '../../constants/assets';
+import { flushTelemetry, track, trackScreen } from '../../lib/telemetry';
+import { useI18n } from '../../lib/i18n';
+import { purchaseLeaguePass } from '../../lib/revenueCat';
 
 interface ShopItem {
   id: string;
@@ -80,10 +84,11 @@ const SKIN_PACKS: SkinPack[] = [
 ];
 
 function ShopCard({ item }: { item: ShopItem }) {
+  const { t } = useI18n();
   return (
     <Pressable
       style={styles.shopCard}
-      onPress={() => Alert.alert('Próximamente', 'Las compras estarán disponibles pronto 🚀')}
+      onPress={() => Alert.alert(t('common.comingSoon'), t('shop.purchasesComing'))}
     >
       {item.asset ? (
         <GameAsset name={item.asset} size={42} />
@@ -102,10 +107,11 @@ function ShopCard({ item }: { item: ShopItem }) {
 }
 
 function SkinPackCard({ pack }: { pack: SkinPack }) {
+  const { t } = useI18n();
   return (
     <Pressable
       style={styles.skinCard}
-      onPress={() => Alert.alert('Próximamente', 'Las skins se podrán comprar y equipar al lanzamiento ✨')}
+      onPress={() => Alert.alert(t('common.comingSoon'), t('shop.skinsComing'))}
     >
       <View style={[styles.skinAccent, { backgroundColor: pack.accent }]} />
       <View style={styles.skinBody}>
@@ -120,7 +126,7 @@ function SkinPackCard({ pack }: { pack: SkinPack }) {
           <View style={styles.priceChip}>
             <Text style={styles.priceText}>{pack.price}</Text>
           </View>
-          <Text style={styles.skinBadge}>NUEVO</Text>
+          <Text style={styles.skinBadge}>{t('shop.new')}</Text>
         </View>
       </View>
     </Pressable>
@@ -128,11 +134,37 @@ function SkinPackCard({ pack }: { pack: SkinPack }) {
 }
 
 export default function ShopScreen() {
+  const { t } = useI18n();
+
+  useFocusEffect(
+    useCallback(() => {
+      trackScreen('shop', {
+        coin_packs: COIN_PACKS.length,
+        hint_packs: HINT_PACKS.length,
+        skin_packs: SKIN_PACKS.length,
+      });
+      track('shop_opened', {
+        coin_packs: COIN_PACKS.length,
+        hint_packs: HINT_PACKS.length,
+        skin_packs: SKIN_PACKS.length,
+      });
+      void flushTelemetry();
+    }, [])
+  );
+
+  const handleLeaguePassPress = async () => {
+    track('iap_intent', { product_id: 'quackdoku.league_pass.weekly', placement: 'shop_plus' });
+    const purchased = await purchaseLeaguePass();
+    if (!purchased) {
+      Alert.alert(t('common.comingSoon'), t('shop.subscriptionComing'));
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.title}>🛒 Tienda</Text>
+          <Text style={styles.title}>{t('shop.title')}</Text>
         </View>
 
         {/* Sub banner */}
@@ -141,12 +173,12 @@ export default function ShopScreen() {
             <Text style={styles.subEmoji}>🕵️</Text>
             <View>
               <Text style={styles.subTitle}>Detective Plus</Text>
-              <Text style={styles.subDesc}>Sin anuncios · 500 monedas/mes · 10 pistas/mes</Text>
+              <Text style={styles.subDesc}>{t('shop.plusDesc')}</Text>
             </View>
           </View>
           <Pressable
             style={styles.subBtn}
-            onPress={() => Alert.alert('Próximamente', 'Suscripción disponible al lanzamiento')}
+            onPress={handleLeaguePassPress}
           >
             <Text style={styles.subBtnText}>$2.99/mes</Text>
           </Pressable>
@@ -155,7 +187,7 @@ export default function ShopScreen() {
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
             <GameAsset name="coin" size={28} />
-            <Text style={styles.sectionTitle}>Monedas</Text>
+            <Text style={styles.sectionTitle}>{t('shop.coins')}</Text>
           </View>
           {COIN_PACKS.map((item) => <ShopCard key={item.id} item={item} />)}
         </View>
@@ -163,7 +195,7 @@ export default function ShopScreen() {
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
             <GameAsset name="clue" size={28} />
-            <Text style={styles.sectionTitle}>Pistas</Text>
+            <Text style={styles.sectionTitle}>{t('shop.clues')}</Text>
           </View>
           {HINT_PACKS.map((item) => <ShopCard key={item.id} item={item} />)}
         </View>
@@ -171,21 +203,21 @@ export default function ShopScreen() {
         <View style={styles.section}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.skinSectionIcon}>🎨</Text>
-            <Text style={styles.sectionTitle}>Skins de patos</Text>
+            <Text style={styles.sectionTitle}>{t('shop.duckSkins')}</Text>
           </View>
-          <Text style={styles.skinSectionHint}>Personaliza tus sospechosos. Equípalas en Personajes.</Text>
+          <Text style={styles.skinSectionHint}>{t('shop.duckSkinsHint')}</Text>
           {SKIN_PACKS.map((pack) => <SkinPackCard key={pack.id} pack={pack} />)}
         </View>
 
         <View style={styles.freeSection}>
-          <Text style={styles.freeSectionTitle}>Gratis</Text>
+          <Text style={styles.freeSectionTitle}>{t('shop.free')}</Text>
           <Pressable
             style={styles.freeCard}
-            onPress={() => Alert.alert('Anuncio', 'Ver anuncio para obtener 3 pistas (próximamente)')}
+            onPress={() => Alert.alert('Ad', t('shop.adComing'))}
           >
             <Text style={styles.freeEmoji}>📺</Text>
             <View style={styles.freeReward}>
-              <Text style={styles.freeLabel}>Ver anuncio → +3</Text>
+              <Text style={styles.freeLabel}>{t('shop.watchAd')}</Text>
               <GameAsset name="clue" size={22} />
             </View>
           </Pressable>

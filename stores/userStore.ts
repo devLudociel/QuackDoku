@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface UserStore {
   username: string;
@@ -16,6 +18,7 @@ export interface UserStore {
   perfectCases: number;
   bestTime: number | null;
   hasLeaguePass: boolean;
+  hasSeenTutorial: boolean;
 
   // Actions
   addCoins: (amount: number) => void;
@@ -27,6 +30,8 @@ export interface UserStore {
   setFavoriteDuck: (duckId: string) => void;
   setLeaguePassOwned: (owned: boolean) => void;
   checkStreak: () => void;
+  markTutorialSeen: () => void;
+  resetTutorial: () => void;
 }
 
 const XP_PER_LEVEL = [0, 100, 300, 650, 1150, 1850, 2850, 4350, 6350, 9350, 13350];
@@ -57,7 +62,9 @@ export function getLevelProgress(level: number, xp: number) {
   };
 }
 
-export const useUserStore = create<UserStore>((set, get) => ({
+export const useUserStore = create<UserStore>()(
+  persist(
+    (set, get) => ({
   username: 'Detective',
   level: 1,
   xp: 0,
@@ -73,6 +80,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
   perfectCases: 0,
   bestTime: null,
   hasLeaguePass: false,
+  hasSeenTutorial: false,
 
   addCoins: (amount) => set((s) => ({ coins: s.coins + amount })),
 
@@ -124,6 +132,10 @@ export const useUserStore = create<UserStore>((set, get) => ({
 
   setLeaguePassOwned: (owned) => set({ hasLeaguePass: owned }),
 
+  markTutorialSeen: () => set({ hasSeenTutorial: true }),
+
+  resetTutorial: () => set({ hasSeenTutorial: false }),
+
   checkStreak: () => {
     const today = new Date().toDateString();
     const { lastStreakDate, streakDays } = get();
@@ -139,4 +151,29 @@ export const useUserStore = create<UserStore>((set, get) => ({
       set({ streakDays: 1, lastStreakDate: today });
     }
   },
-}));
+}),
+    {
+      name: 'quackdoku-user',
+      storage: createJSONStorage(() => AsyncStorage),
+      version: 1,
+      partialize: (state) => ({
+        username: state.username,
+        level: state.level,
+        xp: state.xp,
+        xpToNextLevel: state.xpToNextLevel,
+        coins: state.coins,
+        gems: state.gems,
+        clues: state.clues,
+        streakDays: state.streakDays,
+        lastStreakDate: state.lastStreakDate,
+        favoriteDuck: state.favoriteDuck,
+        casesCompleted: state.casesCompleted,
+        totalPoints: state.totalPoints,
+        perfectCases: state.perfectCases,
+        bestTime: state.bestTime,
+        hasLeaguePass: state.hasLeaguePass,
+        hasSeenTutorial: state.hasSeenTutorial,
+      }),
+    },
+  ),
+);

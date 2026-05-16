@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -16,6 +16,9 @@ import Button from '../../components/ui/Button';
 import GameAsset from '../../components/ui/GameAsset';
 import DuckAvatar from '../../components/ui/DuckAvatar';
 import { DUCK_MAP } from '../../constants/ducks';
+import { fetchRemoteDailyLeaderboard } from '../../lib/dailyApi';
+import type { DailyLeaderboardEntry } from '../../stores/dailyStore';
+import { useI18n } from '../../lib/i18n';
 
 function splitCountdown(seconds: number) {
   const safeSeconds = Math.max(0, seconds);
@@ -27,17 +30,29 @@ function splitCountdown(seconds: number) {
 }
 
 export default function DailyCaseScreen() {
+  const { t } = useI18n();
   const daily = getDailyCaseForDate();
   const secondsLeft = useCountdownToMidnight();
   const completion = useDailyStore((state) => state.resultsByDate[daily.date]);
   const getLeaderboardForDate = useDailyStore((state) => state.getLeaderboardForDate);
-  const leaderboard = getLeaderboardForDate(daily.date).slice(0, 3);
+  const [remoteLeaderboard, setRemoteLeaderboard] = useState<DailyLeaderboardEntry[] | null>(null);
+  const leaderboard = (remoteLeaderboard ?? getLeaderboardForDate(daily.date)).slice(0, 3);
   const countdown = splitCountdown(secondsLeft);
   const heroDuck = DUCK_MAP.duck_tophat;
 
   const startDailyCase = () => {
     router.push(`/game/${daily.case.case_id}?daily=1`);
   };
+
+  useEffect(() => {
+    let mounted = true;
+    void fetchRemoteDailyLeaderboard(daily.date).then((entries) => {
+      if (mounted && entries) setRemoteLeaderboard(entries);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [daily.date]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -46,13 +61,13 @@ export default function DailyCaseScreen() {
           <Pressable style={styles.backButton} onPress={() => router.back()}>
             <Text style={styles.backText}>←</Text>
           </Pressable>
-          <Text style={styles.screenTitle}>Caso del Dia</Text>
+          <Text style={styles.screenTitle}>{t('daily.title')}</Text>
           <Text style={styles.trophy}>🏆</Text>
         </View>
 
         <View style={styles.heroCard}>
           <View style={styles.dayPill}>
-            <Text style={styles.dayPillText}>HOY · #{daily.dayNumber}</Text>
+            <Text style={styles.dayPillText}>{t('daily.today')} · #{daily.dayNumber}</Text>
           </View>
           <View style={styles.heroDuckWrap}>
             <DuckAvatar duck={heroDuck} size={102} />
@@ -62,7 +77,7 @@ export default function DailyCaseScreen() {
         </View>
 
         <View style={styles.countdownCard}>
-          <Text style={styles.countdownLabel}>Nuevo caso en:</Text>
+          <Text style={styles.countdownLabel}>{t('daily.newCaseIn')}</Text>
           <View style={styles.countdownRow}>
             {[
               { label: 'HS', value: countdown.hours },
@@ -78,32 +93,32 @@ export default function DailyCaseScreen() {
         </View>
 
         <View style={styles.detectivesCard}>
-          <Text style={styles.cardTitle}>Detectives de hoy</Text>
+          <Text style={styles.cardTitle}>{t('daily.detectivesToday')}</Text>
           <View style={styles.detectiveStats}>
             <View style={styles.detectiveStat}>
               <Text style={styles.detectiveIcon}>🦆</Text>
               <Text style={styles.detectiveValue}>1.247</Text>
-              <Text style={styles.detectiveLabel}>jugaron hoy</Text>
+              <Text style={styles.detectiveLabel}>{t('daily.playedToday')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.detectiveStat}>
               <Text style={styles.detectiveIcon}>⭐</Text>
               <Text style={styles.detectiveValue}>68%</Text>
-              <Text style={styles.detectiveLabel}>3 estrellas</Text>
+              <Text style={styles.detectiveLabel}>{t('daily.threeStars')}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.detectiveStat}>
               <Text style={styles.detectiveIcon}>⏱</Text>
               <Text style={styles.detectiveValue}>7:32</Text>
-              <Text style={styles.detectiveLabel}>tiempo medio</Text>
+              <Text style={styles.detectiveLabel}>{t('daily.averageTime')}</Text>
             </View>
           </View>
         </View>
 
         <View style={styles.topDetectivesCard}>
           <View style={styles.topDetectivesHeader}>
-            <Text style={styles.cardTitle}>Top detectives hoy</Text>
-            <Text style={styles.viewAll}>Ver todos →</Text>
+            <Text style={styles.cardTitle}>{t('daily.topToday')}</Text>
+            <Text style={styles.viewAll}>{t('daily.viewAll')}</Text>
           </View>
           {leaderboard.map((entry) => (
             <View key={`${entry.rank}-${entry.username}`} style={styles.detectiveRow}>
@@ -118,19 +133,19 @@ export default function DailyCaseScreen() {
 
         {completion ? (
           <View style={styles.completedBox}>
-            <Text style={styles.completedTitle}>Caso resuelto hoy</Text>
+            <Text style={styles.completedTitle}>{t('daily.completedToday')}</Text>
             <Text style={styles.completedText}>
               {'⭐'.repeat(completion.stars)}{'☆'.repeat(3 - completion.stars)} · {formatDailyTime(completion.timeSeconds)} · {completion.errors} error(es)
             </Text>
-            <Button label="Ver resultado y ranking" onPress={() => router.push('/daily/result')} fullWidth />
+            <Button label={t('daily.viewResult')} onPress={() => router.push('/daily/result')} fullWidth />
           </View>
         ) : (
-          <Button label="Investigar el caso de hoy →" onPress={startDailyCase} fullWidth style={styles.startButton} />
+          <Button label={t('daily.start')} onPress={startDailyCase} fullWidth style={styles.startButton} />
         )}
 
         <Pressable style={styles.secondaryCard} onPress={() => router.push('/(tabs)/cases')}>
-          <Text style={styles.secondaryTitle}>Casos normales</Text>
-          <Text style={styles.secondaryText}>Juega el catalogo sin afectar tu resultado diario.</Text>
+          <Text style={styles.secondaryTitle}>{t('daily.normalCases')}</Text>
+          <Text style={styles.secondaryText}>{t('daily.normalCasesHint')}</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

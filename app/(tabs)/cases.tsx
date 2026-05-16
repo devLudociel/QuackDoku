@@ -10,6 +10,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Colors, Spacing, Radius, Shadow, Fonts } from '../../constants/theme';
 import { ALL_CASES, GameCase } from '../../constants/cases';
+import GameAsset from '../../components/ui/GameAsset';
 
 function DifficultyStars({ difficulty }: { difficulty: number }) {
   return (
@@ -35,7 +36,8 @@ function CaseCard({ item }: { item: GameCase }) {
       </View>
       <View style={styles.cardRight}>
         <View style={styles.rewardChip}>
-          <Text style={styles.rewardText}>+{item.rewards.coins}🪙</Text>
+          <Text style={styles.rewardText}>+{item.rewards.coins}</Text>
+          <GameAsset name="coin" size={18} />
         </View>
         <Text style={styles.arrow}>›</Text>
       </View>
@@ -122,6 +124,9 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   rewardChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
     backgroundColor: Colors.yellowSoft,
     borderRadius: Radius.badge,
     paddingHorizontal: Spacing.xs,

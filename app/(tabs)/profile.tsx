@@ -12,6 +12,7 @@ import { useCollectionStore } from '../../stores/collectionStore';
 import { DUCK_MAP } from '../../constants/ducks';
 import { DUCKS } from '../../constants/ducks';
 import DuckAvatar from '../../components/ui/DuckAvatar';
+import GameAsset from '../../components/ui/GameAsset';
 
 export default function ProfileScreen() {
   const {
@@ -74,7 +75,13 @@ export default function ProfileScreen() {
             { label: 'Patos', value: `${unlockedDucks.length}/${DUCKS.length}`, icon: '🦆' },
           ].map((stat) => (
             <View key={stat.label} style={styles.statCard}>
-              <Text style={styles.statIcon}>{stat.icon}</Text>
+              {stat.label === 'Monedas' ? (
+                <GameAsset name="coin" size={28} style={styles.statAsset} />
+              ) : stat.label === 'Pistas' ? (
+                <GameAsset name="clue" size={28} style={styles.statAsset} />
+              ) : (
+                <Text style={styles.statIcon}>{stat.icon}</Text>
+              )}
               <Text style={styles.statValue}>{stat.value}</Text>
               <Text style={styles.statLabel}>{stat.label}</Text>
             </View>
@@ -171,6 +178,9 @@ const styles = StyleSheet.create({
   },
   statIcon: {
     fontSize: 24,
+    marginBottom: 4,
+  },
+  statAsset: {
     marginBottom: 4,
   },
   statValue: {

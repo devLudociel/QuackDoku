@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { BoardData } from '../constants/cases';
+import type { DailyMove } from '../lib/daily';
 import {
   BoardState,
   buildInitialBoardState,
@@ -40,6 +41,8 @@ interface GameStore {
   notesMode: boolean;
   xMode: boolean;
   history: BoardState[];
+  historyMoveLengths: number[];
+  moveHistory: DailyMove[];
 
   // Results
   stars: number;
@@ -51,9 +54,11 @@ interface GameStore {
   selectCell: (row: number, col: number) => void;
   placeDuck: (duck_id: string) => PlaceDuckResult;
   placeDuckAt: (row: number, col: number, duck_id: string) => PlaceDuckResult;
+  toggleNoteAt: (row: number, col: number, duck_id: string) => boolean;
   submitSolution: () => SubmitSolutionResult;
   toggleXMode: () => void;
   toggleXMarkAt: (row: number, col: number) => boolean;
+  clearCellAt: (row: number, col: number) => boolean;
   undoLast: () => void;
   useBasicClue: () => BasicClueResult | null;
   revealCellWithClue: () => RevealClueResult | null;
@@ -140,6 +145,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   notesMode: false,
   xMode: false,
   history: [],
+  historyMoveLengths: [],
+  moveHistory: [],
   stars: 0,
   earnedCoins: 0,
   earnedXp: 0,
@@ -168,6 +175,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       notesMode: false,
       xMode: false,
       history: [],
+      historyMoveLengths: [],
+      moveHistory: [],
       stars: 0,
       earnedCoins: 0,
       earnedXp: 0,
@@ -189,7 +198,18 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   placeDuckAt: (row, col, duck_id) => {
-    const { board, boardState, hearts, phase, notesMode, xMode, history, errors } = get();
+    const {
+      board,
+      boardState,
+      hearts,
+      phase,
+      notesMode,
+      xMode,
+      history,
+      historyMoveLengths,
+      moveHistory,
+      errors,
+    } = get();
 
     if (!board || phase !== 'playing') {
       return EMPTY_PLACE_RESULT;
@@ -283,7 +303,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
         )
       );
 
-      set({ boardState: newState, history: [...history, previousState], selectedCell: { row, col } });
+      set({
+        boardState: newState,
+        history: [...history, previousState],
+        historyMoveLengths: [...historyMoveLengths, moveHistory.length],
+        moveHistory: [...moveHistory, { row, col, duck_id, isCorrect: checkSolution(board, row, col, duck_id) }],
+        selectedCell: null,
+      });
       return {
         success: true,
         isCorrect: false,
@@ -306,7 +332,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
       const newPhase: GamePhase = newHearts <= 0 ? 'gameover' : 'playing';
       const conflictCellKeys = getConflictCellKeys(board, boardState, row, col, duck_id, validation.conflicts);
 
-      set({ hearts: newHearts, errors: newErrors, phase: newPhase });
+      set({
+        hearts: newHearts,
+        errors: newErrors,
+        phase: newPhase,
+        moveHistory: [...moveHistory, { row, col, duck_id, isCorrect: false }],
+      });
       return {
         success: false,
         isCorrect: false,
@@ -322,6 +353,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Correct placement
     const newHistory = [...history, previousState];
+    const newMoveHistory = [...moveHistory, { row, col, duck_id, isCorrect: true }];
 
     const newState: BoardState = boardState.map((r, ri) =>
       r.map((c, ci) =>
@@ -340,6 +372,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({
         boardState: newState,
         history: newHistory,
+        historyMoveLengths: [...historyMoveLengths, moveHistory.length],
+        moveHistory: newMoveHistory,
         phase: 'completed',
         stars,
         selectedCell: null,
@@ -358,7 +392,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
       };
     }
 
-    set({ boardState: newState, history: newHistory });
+    set({
+      boardState: newState,
+      history: newHistory,
+      historyMoveLengths: [...historyMoveLengths, moveHistory.length],
+      moveHistory: newMoveHistory,
+      selectedCell: null,
+    });
     return {
       success: true,
       isCorrect: true,
@@ -370,6 +410,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
       col,
       duck_id,
     };
+  },
+
+  toggleNoteAt: (row, col, duck_id) => {
+    const { board, boardState, phase } = get();
+    if (!board || phase !== 'playing') return false;
+
+    const cell = boardState[row]?.[col];
+    if (!cell || cell.is_fixed || cell.duck_id || cell.x_mark || isCellBlocked(board, row, col)) return false;
+
+    const newNotes = cell.notes.includes(duck_id)
+      ? cell.notes.filter((n) => n !== duck_id)
+      : [...cell.notes, duck_id];
+
+    const newState = boardState.map((r, ri) =>
+      r.map((c, ci) => (ri === row && ci === col ? { ...c, notes: newNotes } : c))
+    );
+    set({ boardState: newState, selectedCell: { row, col } });
+    return true;
   },
 
   submitSolution: () => {
@@ -436,7 +494,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   toggleXMode: () => set((s) => ({ xMode: !s.xMode, notesMode: false, selectedCell: null })),
 
   toggleXMarkAt: (row, col) => {
-    const { board, boardState, phase, history } = get();
+    const { board, boardState, phase, history, historyMoveLengths, moveHistory } = get();
     if (!board || phase !== 'playing') return false;
 
     const cell = boardState[row]?.[col];
@@ -451,17 +509,54 @@ export const useGameStore = create<GameStore>((set, get) => ({
       )
     );
 
-    set({ boardState: newState, history: [...history, previousState], selectedCell: { row, col } });
+    set({
+      boardState: newState,
+      history: [...history, previousState],
+      historyMoveLengths: [...historyMoveLengths, moveHistory.length],
+      selectedCell: { row, col },
+    });
+    return true;
+  },
+
+  clearCellAt: (row, col) => {
+    const { board, boardState, phase, history, historyMoveLengths, moveHistory } = get();
+    if (!board || phase !== 'playing') return false;
+
+    const cell = boardState[row]?.[col];
+    if (!cell || cell.is_fixed || isCellBlocked(board, row, col)) return false;
+    if (!cell.duck_id && !cell.x_mark && cell.notes.length === 0) return false;
+
+    const previousState = cloneBoardState(boardState);
+    const newState: BoardState = boardState.map((r, ri) =>
+      r.map((c, ci) =>
+        ri === row && ci === col
+          ? { ...c, duck_id: null, is_correct: null, x_mark: false, notes: [] }
+          : c
+      )
+    );
+
+    set({
+      boardState: newState,
+      history: [...history, previousState],
+      historyMoveLengths: [...historyMoveLengths, moveHistory.length],
+      selectedCell: { row, col },
+    });
     return true;
   },
 
   undoLast: () => {
-    const { history } = get();
+    const { history, historyMoveLengths, moveHistory } = get();
     if (history.length === 0) return;
 
     const last = history[history.length - 1];
     const newHistory = history.slice(0, -1);
-    set({ boardState: cloneBoardState(last), history: newHistory });
+    const moveHistoryLength = historyMoveLengths[historyMoveLengths.length - 1] ?? moveHistory.length;
+    set({
+      boardState: cloneBoardState(last),
+      history: newHistory,
+      historyMoveLengths: historyMoveLengths.slice(0, -1),
+      moveHistory: moveHistory.slice(0, moveHistoryLength),
+    });
   },
 
   useBasicClue: () => {
@@ -648,6 +743,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       notesMode: false,
       xMode: false,
       history: [],
+      historyMoveLengths: [],
+      moveHistory: [],
       stars: 0,
     }),
 }));

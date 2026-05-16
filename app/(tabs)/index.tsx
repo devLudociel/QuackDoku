@@ -1,57 +1,118 @@
 import React from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
   Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Colors, Spacing, Radius, Shadow, Fonts } from '../../constants/theme';
+import { Colors, Fonts, Radius, Shadow, Spacing } from '../../constants/theme';
 import { getLevelProgress, useUserStore } from '../../stores/userStore';
 import { ALL_CASES } from '../../constants/cases';
+import { formatCountdown, getDailyCaseForDate } from '../../lib/daily';
+import { useCountdownToMidnight } from '../../hooks/useCountdownToMidnight';
+import GameAsset from '../../components/ui/GameAsset';
+import DuckAvatar from '../../components/ui/DuckAvatar';
+import { DUCK_MAP } from '../../constants/ducks';
+import { onLeaguePassOpportunity } from '../../lib/monetization';
+
+const ACTIVE_CASES = [
+  { title: 'El Informador', subtitle: 'Club Nocturno Migra', status: 'Jugar' },
+  { title: 'Plumas de Seda', subtitle: 'Hotel Plumaza', status: 'Resuelto' },
+  { title: 'La Herencia', subtitle: 'Mansión Quackwell', status: 'Jugar' },
+];
 
 export default function HomeScreen() {
-  const { username, level, xp, coins, streakDays, casesCompleted } =
-    useUserStore();
-
+  const { username, level, xp, coins, streakDays, casesCompleted, bestTime, hasLeaguePass } = useUserStore();
   const xpProgress = getLevelProgress(level, xp);
+  const daily = getDailyCaseForDate();
+  const secondsLeft = useCountdownToMidnight();
+  const heroDuck = DUCK_MAP.duck_tophat;
+
+  const formatBestTime = (seconds: number | null) => {
+    if (!seconds) return '3:12';
+    const mins = Math.floor(seconds / 60);
+    const rest = seconds % 60;
+    return `${mins}:${rest.toString().padStart(2, '0')}`;
+  };
+
+  const handleLeaguePress = () => {
+    onLeaguePassOpportunity('home_card', 'weekly_gold', 7, 30, hasLeaguePass);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Header */}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>¡Hola, detective! 🦆</Text>
-            <Text style={styles.username}>{username}</Text>
+          <View style={styles.headerText}>
+            <Text style={styles.eyebrow}>BUENOS DIAS</Text>
+            <Text style={styles.username}>{username}_Mx 🦆</Text>
           </View>
-          <View style={styles.headerRight}>
-            <View style={styles.coinsChip}>
-              <Text style={styles.coinIcon}>🪙</Text>
-              <Text style={styles.coinAmount}>{coins}</Text>
+          <View style={styles.avatarWrap}>
+            <DuckAvatar duck={heroDuck} size={44} />
+            <View style={styles.avatarBadge}>
+              <Text style={styles.avatarBadgeText}>3</Text>
             </View>
           </View>
         </View>
 
-        {/* Level + XP bar */}
-        <View style={styles.levelCard}>
-          <View style={styles.levelRow}>
-            <Text style={styles.levelBadge}>Nv. {level}</Text>
-            <Text style={styles.xpText}>{xpProgress.xpInLevel} / {xpProgress.xpToNextLevel} XP</Text>
+        <View style={styles.levelRow}>
+          <Text style={styles.levelText}>Nivel {level}</Text>
+          <View style={styles.xpTrack}>
+            <View style={[styles.xpFill, { width: `${xpProgress.percent}%` }]} />
           </View>
-          <View style={styles.xpBarBg}>
-            <View style={[styles.xpBarFill, { width: `${xpProgress.percent}%` }]} />
-          </View>
+          <Text style={styles.xpText}>{xpProgress.xpInLevel} / {xpProgress.xpToNextLevel} XP</Text>
         </View>
 
-        {/* Stats row */}
+        <Pressable style={styles.dailyHero} onPress={() => router.push('/daily')}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.todayPill}>HOY</Text>
+            <Text style={styles.dailyTitle}>{daily.case.title}</Text>
+            <Text style={styles.dailyMeta}>
+              {'⭐'.repeat(Math.min(3, daily.case.difficulty))} · {daily.dayNumber.toLocaleString()} jugaron
+            </Text>
+            <View style={styles.heroButton}>
+              <Text style={styles.heroButtonText}>¡Investigar hoy! 🔍</Text>
+            </View>
+          </View>
+          <View style={styles.heroDuck}>
+            <DuckAvatar duck={heroDuck} size={94} />
+          </View>
+          <Text style={styles.heroTimer}>⏱ {formatCountdown(secondsLeft)}</Text>
+        </Pressable>
+
+        <Pressable style={styles.leagueCard} onPress={handleLeaguePress}>
+          <View style={styles.medalCircle}>
+            <Text style={styles.medalText}>🥇</Text>
+          </View>
+          <View style={styles.leagueInfo}>
+            <Text style={styles.leagueTitle} numberOfLines={1}>Liga Oro · Posición 7/30</Text>
+            <Text style={styles.leagueSub} numberOfLines={1}>Básica gratis · 3 días para el cierre</Text>
+            <View style={styles.leagueTrack}>
+              <View style={styles.leagueFill} />
+            </View>
+            <Text style={styles.leagueFoot}>Posición actual: 7</Text>
+          </View>
+          <View style={styles.leagueReward}>
+            <View style={[styles.leaguePassPill, hasLeaguePass && styles.leaguePassPillOwned]}>
+              <Text style={[styles.leaguePassText, hasLeaguePass && styles.leaguePassTextOwned]}>
+                {hasLeaguePass ? 'ACTIVO' : 'PASE'}
+              </Text>
+            </View>
+            <Text style={styles.leagueRewardText}>+200</Text>
+            <GameAsset name="coin" size={14} />
+            <Text style={styles.leagueRewardSub}>si top 10</Text>
+          </View>
+        </Pressable>
+
         <View style={styles.statsRow}>
           {[
-            { label: 'Casos', value: casesCompleted, icon: '📁' },
-            { label: 'Racha', value: streakDays, icon: '🔥' },
-            { label: 'Monedas', value: coins, icon: '🪙' },
+            { icon: '◈', value: String(casesCompleted || 12), label: 'Casos' },
+            { icon: '🔥', value: String(streakDays || 7), label: 'Racha' },
+            { icon: '🪙', value: String(coins), label: 'Monedas' },
+            { icon: '🏆', value: `#${daily.dayNumber}`, label: 'Liga' },
           ].map((stat) => (
             <View key={stat.label} style={styles.statCard}>
               <Text style={styles.statIcon}>{stat.icon}</Text>
@@ -61,49 +122,36 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {/* Hero CTA */}
-        <Pressable
-          style={styles.heroCard}
-          onPress={() => router.push('/(tabs)/cases')}
-        >
-          <View style={styles.heroContent}>
-            <Text style={styles.heroEmoji}>🔍</Text>
-            <View>
-              <Text style={styles.heroTitle}>Nueva Partida</Text>
-              <Text style={styles.heroSubtitle}>
-                {ALL_CASES.length} caso{ALL_CASES.length !== 1 ? 's' : ''} disponible{ALL_CASES.length !== 1 ? 's' : ''}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.heroArrow}>›</Text>
-        </Pressable>
-
-        {/* Daily case */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>🔥 Caso Diario</Text>
+          <Text style={styles.sectionTitle}>Expedientes activos</Text>
         </View>
-        <Pressable
-          style={styles.dailyCard}
-          onPress={() => router.push('/case/case_001')}
-        >
-          <View style={styles.dailyLeft}>
-            <Text style={styles.dailyEmoji}>🏰</Text>
-            <View>
-              <Text style={styles.dailyTitle}>{ALL_CASES[0].title}</Text>
-              <Text style={styles.dailyDifficulty}>
-                {'⭐'.repeat(ALL_CASES[0].difficulty)} · {ALL_CASES[0].location}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.dailyReward}>
-            <Text style={styles.rewardText}>+150🪙</Text>
-          </View>
-        </Pressable>
 
-        {/* Logo footer */}
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>🦆 QUACKDOKU</Text>
-          <Text style={styles.footerSub}>Sudoku × Misterio × Patos</Text>
+        <View style={styles.caseList}>
+          {ACTIVE_CASES.map((item, index) => (
+            <Pressable
+              key={item.title}
+              style={styles.caseRow}
+              onPress={() => router.push(index === 0 ? `/case/${ALL_CASES[0].case_id}` : '/(tabs)/cases')}
+            >
+              <View style={styles.caseThumb}>
+                <DuckAvatar duck={index === 1 ? DUCK_MAP.duck_plum : heroDuck} size={34} />
+              </View>
+              <View style={styles.caseText}>
+                <Text style={styles.caseTitle}>{item.title}</Text>
+                <Text style={styles.caseSub}>{item.subtitle}</Text>
+              </View>
+              <View style={[styles.caseStatus, item.status === 'Resuelto' && styles.caseStatusDone]}>
+                <Text style={[styles.caseStatusText, item.status === 'Resuelto' && styles.caseStatusDoneText]}>
+                  {item.status === 'Resuelto' ? '✓ Resuelto' : 'Jugar →'}
+                </Text>
+              </View>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={styles.footerStats}>
+          <Text style={styles.footerText}>Récord personal: {formatBestTime(bestTime)}</Text>
+          <Text style={styles.footerText}>Sudoku × Misterio × Patos</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -115,201 +163,329 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  scroll: {
-    flex: 1,
+  content: {
     paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.xxl,
+    gap: Spacing.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: Spacing.lg,
-    paddingBottom: Spacing.md,
   },
-  greeting: {
-    fontSize: Fonts.body,
+  headerText: {
+    flex: 1,
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontWeight: '900',
     color: Colors.gray,
+    letterSpacing: 1,
   },
   username: {
-    fontSize: Fonts.h2,
-    fontWeight: '800',
+    fontSize: 22,
+    fontWeight: '900',
     color: Colors.blackPremium,
+    marginTop: 3,
   },
-  headerRight: {
-    alignItems: 'flex-end',
-    gap: Spacing.xs,
-  },
-  coinsChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  avatarWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 18,
     backgroundColor: Colors.yellowSoft,
-    borderRadius: Radius.badge,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    gap: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
   },
-  coinIcon: {
-    fontSize: 16,
+  avatarBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: Colors.warning,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
   },
-  coinAmount: {
-    fontWeight: '700',
-    color: Colors.blackPremium,
-    fontSize: Fonts.body,
-  },
-  levelCard: {
-    backgroundColor: Colors.white,
-    borderRadius: Radius.card,
-    padding: Spacing.md,
-    marginBottom: Spacing.md,
-    ...Shadow.card,
+  avatarBadgeText: {
+    color: Colors.white,
+    fontSize: 10,
+    fontWeight: '900',
   },
   levelRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.xs,
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
-  levelBadge: {
-    fontWeight: '700',
-    fontSize: Fonts.body,
-    color: Colors.blackPremium,
+  levelText: {
+    fontSize: Fonts.xs,
+    color: '#6C63FF',
+    fontWeight: '800',
   },
-  xpText: {
-    fontSize: Fonts.small,
-    color: Colors.gray,
-  },
-  xpBarBg: {
-    height: 8,
-    borderRadius: 4,
+  xpTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: Colors.grayLight,
     overflow: 'hidden',
   },
-  xpBarFill: {
+  xpFill: {
     height: '100%',
+    borderRadius: 3,
     backgroundColor: Colors.yellow,
-    borderRadius: 4,
+  },
+  xpText: {
+    fontSize: 11,
+    color: Colors.gray,
+    fontWeight: '800',
+  },
+  dailyHero: {
+    minHeight: 150,
+    borderRadius: Radius.card,
+    backgroundColor: Colors.navy,
+    padding: Spacing.md,
+    overflow: 'hidden',
+    position: 'relative',
+    borderTopWidth: 3,
+    borderTopColor: Colors.yellow,
+    ...Shadow.darkCard,
+  },
+  heroCopy: {
+    width: '70%',
+    zIndex: 2,
+    gap: 6,
+  },
+  todayPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.yellow,
+    color: Colors.blackPremium,
+    fontSize: 10,
+    fontWeight: '900',
+    borderRadius: Radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  dailyTitle: {
+    color: Colors.white,
+    fontSize: 18,
+    fontWeight: '900',
+    lineHeight: 22,
+  },
+  dailyMeta: {
+    color: Colors.whiteMuted,
+    fontSize: Fonts.xs,
+    fontWeight: '700',
+  },
+  heroButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: Colors.yellow,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 11,
+    marginTop: 4,
+    ...Shadow.button,
+  },
+  heroButtonText: {
+    color: Colors.blackPremium,
+    fontWeight: '900',
+    fontSize: Fonts.small,
+  },
+  heroDuck: {
+    position: 'absolute',
+    right: -8,
+    bottom: -14,
+    opacity: 0.62,
+  },
+  heroTimer: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.md,
+    color: Colors.whiteMuted,
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  leagueCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: Radius.card,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    ...Shadow.card,
+  },
+  medalCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.yellowSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  medalText: {
+    fontSize: 24,
+  },
+  leagueInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  leagueTitle: {
+    color: Colors.blackPremium,
+    fontSize: Fonts.body,
+    fontWeight: '900',
+  },
+  leagueSub: {
+    color: Colors.gray,
+    fontSize: Fonts.xs,
+    fontWeight: '700',
+  },
+  leagueTrack: {
+    height: 5,
+    backgroundColor: Colors.grayLight,
+    borderRadius: 3,
+    marginTop: 5,
+    overflow: 'hidden',
+  },
+  leagueFill: {
+    width: '63%',
+    height: '100%',
+    backgroundColor: '#7C6DFF',
+  },
+  leagueFoot: {
+    fontSize: 10,
+    color: Colors.gray,
+    fontWeight: '700',
+  },
+  leagueReward: {
+    alignItems: 'center',
+    gap: 1,
+  },
+  leaguePassPill: {
+    backgroundColor: Colors.navy,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginBottom: 3,
+  },
+  leaguePassPillOwned: {
+    backgroundColor: Colors.successSoft,
+  },
+  leaguePassText: {
+    color: Colors.yellow,
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  leaguePassTextOwned: {
+    color: Colors.success,
+  },
+  leagueRewardText: {
+    color: Colors.warning,
+    fontSize: Fonts.small,
+    fontWeight: '900',
+  },
+  leagueRewardSub: {
+    color: Colors.gray,
+    fontSize: 10,
+    fontWeight: '700',
   },
   statsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginBottom: Spacing.md,
   },
   statCard: {
     flex: 1,
+    minHeight: 68,
     backgroundColor: Colors.white,
     borderRadius: Radius.card,
-    padding: Spacing.sm,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
     ...Shadow.card,
   },
   statIcon: {
-    fontSize: 20,
-    marginBottom: 2,
+    fontSize: 15,
   },
   statValue: {
-    fontSize: Fonts.h3,
-    fontWeight: '800',
+    fontSize: Fonts.body,
     color: Colors.blackPremium,
+    fontWeight: '900',
+    marginTop: 2,
   },
   statLabel: {
-    fontSize: Fonts.xs,
+    fontSize: 10,
     color: Colors.gray,
-    fontWeight: '600',
-  },
-  heroCard: {
-    backgroundColor: Colors.yellow,
-    borderRadius: Radius.card,
-    padding: Spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-    ...Shadow.button,
-  },
-  heroContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  heroEmoji: {
-    fontSize: 36,
-  },
-  heroTitle: {
-    fontSize: Fonts.h3,
-    fontWeight: '800',
-    color: Colors.blackPremium,
-  },
-  heroSubtitle: {
-    fontSize: Fonts.small,
-    color: Colors.blackPremium,
-    opacity: 0.7,
-  },
-  heroArrow: {
-    fontSize: 28,
-    fontWeight: '300',
-    color: Colors.blackPremium,
+    fontWeight: '700',
   },
   sectionHeader: {
-    marginBottom: Spacing.sm,
+    marginTop: 2,
   },
   sectionTitle: {
-    fontSize: Fonts.h3,
-    fontWeight: '700',
+    fontSize: Fonts.body,
     color: Colors.blackPremium,
+    fontWeight: '900',
   },
-  dailyCard: {
+  caseList: {
+    gap: Spacing.sm,
+  },
+  caseRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.white,
     borderRadius: Radius.card,
-    padding: Spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-    borderLeftWidth: 4,
-    borderLeftColor: Colors.yellow,
+    padding: Spacing.sm,
+    gap: Spacing.sm,
+    minHeight: 64,
     ...Shadow.card,
   },
-  dailyLeft: {
-    flexDirection: 'row',
+  caseThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: Colors.yellowSoft,
     alignItems: 'center',
-    gap: Spacing.md,
+    justifyContent: 'center',
+  },
+  caseText: {
     flex: 1,
   },
-  dailyEmoji: {
-    fontSize: 32,
-  },
-  dailyTitle: {
-    fontSize: Fonts.body,
-    fontWeight: '700',
-    color: Colors.blackPremium,
-  },
-  dailyDifficulty: {
+  caseTitle: {
     fontSize: Fonts.small,
+    color: Colors.blackPremium,
+    fontWeight: '900',
+  },
+  caseSub: {
+    fontSize: 11,
     color: Colors.gray,
-  },
-  dailyReward: {
-    backgroundColor: Colors.yellowSoft,
-    borderRadius: Radius.badge,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-  },
-  rewardText: {
-    fontSize: Fonts.small,
     fontWeight: '700',
-    color: Colors.blackPremium,
+    marginTop: 2,
   },
-  footer: {
+  caseStatus: {
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.yellow,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  caseStatusDone: {
+    backgroundColor: Colors.successSoft,
+  },
+  caseStatusText: {
+    fontSize: 11,
+    color: Colors.blackPremium,
+    fontWeight: '900',
+  },
+  caseStatusDoneText: {
+    color: Colors.success,
+  },
+  footerStats: {
     alignItems: 'center',
-    paddingVertical: Spacing.xl,
+    gap: 2,
+    paddingVertical: Spacing.md,
   },
   footerText: {
-    fontSize: Fonts.h3,
-    fontWeight: '900',
-    color: Colors.yellow,
-    letterSpacing: 2,
-  },
-  footerSub: {
     fontSize: Fonts.xs,
     color: Colors.gray,
-    marginTop: 4,
+    fontWeight: '700',
   },
 });

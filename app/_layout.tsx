@@ -9,6 +9,7 @@ export default function RootLayout() {
       <StatusBar style="dark" backgroundColor={Colors.background} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="daily" />
         <Stack.Screen name="game/[caseId]" />
         <Stack.Screen name="case/[caseId]" options={{ headerShown: true, title: 'Detalle del Caso' }} />
       </Stack>

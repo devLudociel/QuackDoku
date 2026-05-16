@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Spacing } from '../../constants/theme';
+import { View, StyleSheet } from 'react-native';
+import GameAsset from './GameAsset';
 
 interface HeartsDisplayProps {
   hearts: number;
@@ -11,9 +11,7 @@ export default function HeartsDisplay({ hearts, maxHearts }: HeartsDisplayProps)
   return (
     <View style={styles.row}>
       {Array.from({ length: maxHearts }, (_, i) => (
-        <Text key={i} style={styles.heart}>
-          {i < hearts ? '❤️' : '🖤'}
-        </Text>
+        <GameAsset key={i} name={i < hearts ? 'heartFull' : 'heartEmpty'} size={22} />
       ))}
     </View>
   );
@@ -22,9 +20,6 @@ export default function HeartsDisplay({ hearts, maxHearts }: HeartsDisplayProps)
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    gap: 2,
-  },
-  heart: {
-    fontSize: 20,
+    gap: 3,
   },
 });

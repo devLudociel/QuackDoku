@@ -42,9 +42,24 @@ Wireup en `app/game/[caseId].tsx`:
 
 PENDIENTE: probar en dispositivo real, conseguir/grabar los 7 SFX, descomentar registro.
 
+### Tutorial onboarding
+
+Primer arranque (o reset manual) muestra un overlay modal de 4 pasos dentro de la pantalla de juego:
+
+- Bienvenida + explicacion de regla sudoku-de-patos.
+- Como seleccionar un sospechoso.
+- Como colocar en celda.
+- Pistas y boton "Acusar".
+
+Componente `components/tutorial/TutorialOverlay.tsx` (RN `Modal` transparente + indicador de pasos + skip). Steps por defecto exportados como `DEFAULT_TUTORIAL_STEPS`.
+
+Flag `hasSeenTutorial` en `userStore` (persistido). Acciones `markTutorialSeen()` y `resetTutorial()`. El timer del juego pausa mientras el overlay esta visible.
+
+Boton "Repetir tutorial" disponible en pantalla de Perfil con confirmacion Alert.
+
 ## Pendiente inmediato slice MVP-Core (siguientes commits)
 
-- Onboarding/tutorial primer caso (interactivo, 3-4 pasos).
+- Onboarding extra: bandera en `(tabs)/index.tsx` o `case/[caseId]` para mostrar bienvenida fuera del primer caso.
 - Sentry + analytics (PostHog o Amplitude).
 - 15 casos generados nuevos (seeds + nombres temáticos).
 - App icon adaptativo + splash + screenshots + privacy policy.

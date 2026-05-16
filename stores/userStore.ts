@@ -18,6 +18,7 @@ export interface UserStore {
   perfectCases: number;
   bestTime: number | null;
   hasLeaguePass: boolean;
+  hasSeenTutorial: boolean;
 
   // Actions
   addCoins: (amount: number) => void;
@@ -29,6 +30,8 @@ export interface UserStore {
   setFavoriteDuck: (duckId: string) => void;
   setLeaguePassOwned: (owned: boolean) => void;
   checkStreak: () => void;
+  markTutorialSeen: () => void;
+  resetTutorial: () => void;
 }
 
 const XP_PER_LEVEL = [0, 100, 300, 650, 1150, 1850, 2850, 4350, 6350, 9350, 13350];
@@ -77,6 +80,7 @@ export const useUserStore = create<UserStore>()(
   perfectCases: 0,
   bestTime: null,
   hasLeaguePass: false,
+  hasSeenTutorial: false,
 
   addCoins: (amount) => set((s) => ({ coins: s.coins + amount })),
 
@@ -128,6 +132,10 @@ export const useUserStore = create<UserStore>()(
 
   setLeaguePassOwned: (owned) => set({ hasLeaguePass: owned }),
 
+  markTutorialSeen: () => set({ hasSeenTutorial: true }),
+
+  resetTutorial: () => set({ hasSeenTutorial: false }),
+
   checkStreak: () => {
     const today = new Date().toDateString();
     const { lastStreakDate, streakDays } = get();
@@ -164,6 +172,7 @@ export const useUserStore = create<UserStore>()(
         perfectCases: state.perfectCases,
         bestTime: state.bestTime,
         hasLeaguePass: state.hasLeaguePass,
+        hasSeenTutorial: state.hasSeenTutorial,
       }),
     },
   ),

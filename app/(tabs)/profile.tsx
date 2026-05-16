@@ -4,6 +4,8 @@ import {
   Text,
   StyleSheet,
   ScrollView,
+  Pressable,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Spacing, Radius, Shadow, Fonts } from '../../constants/theme';
@@ -30,6 +32,24 @@ export default function ProfileScreen() {
   const { favoriteDuck, unlockedDucks } = useCollectionStore();
   const duck = DUCK_MAP[favoriteDuck];
   const xpProgress = getLevelProgress(level, xp);
+  const resetTutorial = useUserStore((state) => state.resetTutorial);
+
+  const handleResetTutorial = () => {
+    Alert.alert(
+      'Repetir tutorial',
+      'El tutorial volvera a aparecer en tu proximo caso. ¿Continuar?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Si',
+          onPress: () => {
+            resetTutorial();
+            Alert.alert('Listo', 'El tutorial aparecera de nuevo cuando abras un caso.');
+          },
+        },
+      ],
+    );
+  };
 
   const formatTime = (seconds: number | null) => {
     if (!seconds) return '—';
@@ -87,6 +107,14 @@ export default function ProfileScreen() {
             </View>
           ))}
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={handleResetTutorial}
+          style={({ pressed }) => [styles.tutorialBtn, pressed && styles.tutorialBtnPressed]}
+        >
+          <Text style={styles.tutorialBtnText}>Repetir tutorial</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
@@ -193,5 +221,24 @@ const styles = StyleSheet.create({
     color: Colors.gray,
     textAlign: 'center',
     marginTop: 2,
+  },
+  tutorialBtn: {
+    alignSelf: 'center',
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xl,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.pill,
+    backgroundColor: Colors.white,
+    borderWidth: 1,
+    borderColor: Colors.grayLight,
+  },
+  tutorialBtnPressed: {
+    opacity: 0.75,
+  },
+  tutorialBtnText: {
+    color: Colors.gray,
+    fontSize: Fonts.small,
+    fontWeight: '600',
   },
 });

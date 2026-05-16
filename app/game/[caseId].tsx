@@ -43,6 +43,7 @@ import {
 import type { GameMonetizationContext } from '../../lib/monetization';
 import { haptics } from '../../lib/haptics';
 import { playSfx } from '../../lib/sound';
+import TutorialOverlay, { DEFAULT_TUTORIAL_STEPS } from '../../components/tutorial/TutorialOverlay';
 
 export default function GameScreen() {
   const { caseId, daily } = useLocalSearchParams<{ caseId: string; daily?: string }>();
@@ -79,7 +80,11 @@ export default function GameScreen() {
   } = useGameStore();
 
   const { completeCaseReward, spendCoins, coins } = useUserStore();
+  const hasSeenTutorial = useUserStore((state) => state.hasSeenTutorial);
+  const markTutorialSeen = useUserStore((state) => state.markTutorialSeen);
   const completeDailyCase = useDailyStore((state) => state.completeDailyCase);
+
+  const [tutorialVisible, setTutorialVisible] = useState(false);
 
   const [errorCells, setErrorCells] = useState<Set<string>>(new Set());
   const [conflictCells, setConflictCells] = useState<Set<string>>(new Set());
@@ -105,6 +110,10 @@ export default function GameScreen() {
       setActiveDuckId(null);
       setFeedbackMessage(null);
       setCaseCluesExpanded(getBoardPlayMode(gameCase.board) === 'murdoku' && !gameCase.board.background_image);
+
+      if (!hasSeenTutorial) {
+        setTutorialVisible(true);
+      }
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -121,7 +130,7 @@ export default function GameScreen() {
 
   // Timer
   useEffect(() => {
-    if (phase === 'playing') {
+    if (phase === 'playing' && !tutorialVisible) {
       timerRef.current = setInterval(tick, 1000);
     } else {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -129,7 +138,7 @@ export default function GameScreen() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [phase]);
+  }, [phase, tutorialVisible]);
 
   // Reward on completion
   useEffect(() => {
@@ -757,6 +766,19 @@ export default function GameScreen() {
           </View>
         </View>
       </Modal>
+
+      <TutorialOverlay
+        visible={tutorialVisible}
+        steps={DEFAULT_TUTORIAL_STEPS}
+        onComplete={() => {
+          markTutorialSeen();
+          setTutorialVisible(false);
+        }}
+        onSkip={() => {
+          markTutorialSeen();
+          setTutorialVisible(false);
+        }}
+      />
     </SafeAreaView>
   );
 }

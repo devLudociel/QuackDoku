@@ -17,6 +17,7 @@ interface RoomCellProps {
   col: number;
   state: CellState;
   roomColor: string;
+  roomBorderColor: string;
   isSelected: boolean;
   borderTop: boolean;
   borderRight: boolean;
@@ -47,6 +48,7 @@ const RoomCell = React.memo(function RoomCell({
   col,
   state,
   roomColor,
+  roomBorderColor,
   isSelected,
   borderTop,
   borderRight,
@@ -92,21 +94,21 @@ const RoomCell = React.memo(function RoomCell({
   const isSceneCell = roomColor === 'transparent';
 
   const bgColor = showError
-    ? isSceneCell ? 'rgba(232,72,85,0.28)' : Colors.cellError
+    ? 'rgba(232,72,85,0.36)'
     : showConflict
-    ? isSceneCell ? 'rgba(232,72,85,0.22)' : Colors.cellConflict
+    ? 'rgba(232,72,85,0.25)'
     : showCorrect
-    ? isSceneCell ? 'rgba(32,184,90,0.22)' : Colors.cellCorrect
+    ? 'rgba(32,184,90,0.28)'
     : isSelected
-    ? isSceneCell ? 'rgba(255,199,0,0.24)' : Colors.yellowSoft
+    ? 'rgba(255,199,0,0.30)'
     : state.x_mark
-    ? isSceneCell ? 'rgba(255,255,255,0.36)' : 'rgba(255,255,255,0.82)'
+    ? isSceneCell ? 'rgba(255,255,255,0.36)' : 'rgba(255,255,255,0.10)'
     : showBlocked
-    ? isSceneCell ? 'transparent' : 'rgba(30,136,229,0.10)'
+    ? isSceneCell ? 'transparent' : 'rgba(30,136,229,0.12)'
     : showHint
-    ? isSceneCell ? 'rgba(255,199,0,0.30)' : Colors.cellHint
+    ? 'rgba(8,48,110,0.62)'
     : state.is_fixed
-    ? Colors.cellFixed
+    ? isSceneCell ? Colors.cellFixed : 'rgba(255,255,255,0.12)'
     : roomColor;
 
   const borderStyle = isSceneCell
@@ -122,10 +124,10 @@ const RoomCell = React.memo(function RoomCell({
         borderRightWidth: borderRight ? 4 : 1,
         borderBottomWidth: borderBottom ? 4 : 1,
         borderLeftWidth: borderLeft ? 4 : 1,
-        borderTopColor: borderTop ? Colors.boardBorderRoom : Colors.boardBorderInner,
-        borderRightColor: borderRight ? Colors.boardBorderRoom : Colors.boardBorderInner,
-        borderBottomColor: borderBottom ? Colors.boardBorderRoom : Colors.boardBorderInner,
-        borderLeftColor: borderLeft ? Colors.boardBorderRoom : Colors.boardBorderInner,
+        borderTopColor: borderTop ? roomBorderColor : 'rgba(255,255,255,0.16)',
+        borderRightColor: borderRight ? roomBorderColor : 'rgba(255,255,255,0.16)',
+        borderBottomColor: borderBottom ? roomBorderColor : 'rgba(255,255,255,0.16)',
+        borderLeftColor: borderLeft ? roomBorderColor : 'rgba(255,255,255,0.16)',
       };
 
   return (
@@ -173,11 +175,11 @@ const RoomCell = React.memo(function RoomCell({
         )}
 
         {!duck && state.x_mark && (
-          <Text style={[styles.xMark, { fontSize: cellSize * 0.6 }]}>✕</Text>
+          <Text style={[styles.xMark, { fontSize: cellSize * 0.76 }]}>✕</Text>
         )}
 
         {!duck && !state.x_mark && showBlocked && (
-          <Text style={[styles.blockedMark, isSceneCell && styles.blockedMarkScene, { fontSize: cellSize * (isSceneCell ? 0.34 : 0.28) }]}>✕</Text>
+          <Text style={[styles.blockedMark, isSceneCell && styles.blockedMarkScene, { fontSize: cellSize * (isSceneCell ? 0.48 : 0.42) }]}>✕</Text>
         )}
       </Animated.View>
     </Pressable>
@@ -196,7 +198,7 @@ const styles = StyleSheet.create({
   },
   hintBorder: {
     borderWidth: 3,
-    borderColor: Colors.yellowPremium,
+    borderColor: '#061D4F',
   },
   correctBorder: {
     borderWidth: 3,
@@ -222,26 +224,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 10,
     lineHeight: 12,
-    color: '#176EC9',
+    color: Colors.yellow,
     fontWeight: '900',
   },
   blockedMark: {
-    color: '#1E88E5',
+    color: '#050505',
     fontWeight: '900',
-    opacity: 0.86,
+    opacity: 0.98,
+    textShadowColor: 'rgba(255,255,255,0.95)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   blockedMarkScene: {
-    color: '#1473D1',
+    color: '#050505',
     fontWeight: '900',
-    opacity: 0.82,
+    opacity: 0.98,
     textShadowColor: 'rgba(255,255,255,0.95)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   xMark: {
-    color: Colors.gray,
+    color: '#050505',
     fontWeight: '900',
-    opacity: 0.85,
+    opacity: 0.98,
+    textShadowColor: 'rgba(255,255,255,0.95)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
 });
 

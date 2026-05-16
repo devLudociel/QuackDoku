@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     zIndex: 12,
   },
   pill: {
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: 'rgba(15,15,35,0.78)',
     borderRadius: 999,
     borderWidth: 1.5,
     width: '100%',
@@ -82,6 +82,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '900',
     letterSpacing: 0,
-    color: Colors.blackPremium,
+    color: Colors.whiteMuted,
   },
 });

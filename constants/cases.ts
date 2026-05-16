@@ -411,10 +411,9 @@ export const CASE_005: GameCase = makeGeneratedCase({
 });
 
 // ─── CASO 6: El Jardín de Atrás (escenario con imagen) ──────────────────────
-// Murdoku 9x9 sobre una lamina pre-renderizada (`assets/escenario1.png`).
-// PRIMERA PASADA: las regiones y celdas bloqueadas son una aproximacion a la
-// imagen; hay que afinarlas mirando la lamina en el movil. La solucion y las
-// pistas son auto-consistentes con esa aproximacion.
+// Murdoku 9x9 sobre la lamina pre-renderizada `assets/escenario1.png`.
+// Modela la logica de "The Backyard Garden": pistas A-H/V, objetos no
+// ocupables y solucion final de la pagina de resolucion.
 
 const escenario1Asset = require('../assets/escenario1.png') as ImageSourcePropType;
 
@@ -424,36 +423,65 @@ function rectCells(r0: number, r1: number, c0: number, c1: number): BoardCell[] 
   return out;
 }
 
+function cells(...coords: Array<[number, number]>): BoardCell[] {
+  return coords.map(([row, col]) => ({ row, col }));
+}
+
 const CASE_006_REGIONS = {
-  backyard: [...rectCells(0, 2, 0, 2), ...rectCells(3, 5, 2, 4)],
-  pond: rectCells(0, 2, 3, 6),
-  garden: rectCells(0, 2, 7, 8),
-  shed: rectCells(3, 5, 0, 1),
-  sunroom: rectCells(3, 5, 5, 8),
-  bedroom: rectCells(6, 8, 0, 2),
+  backyard: cells(
+    [0, 0], [0, 1], [0, 2],
+    [1, 0], [1, 1],
+    [2, 0], [2, 1], [2, 3], [2, 4], [2, 5],
+    [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7],
+    [4, 3],
+    [5, 1], [5, 2], [5, 3],
+    [6, 0], [6, 1]
+  ),
+  pond: cells([0, 3], [0, 4], [0, 5], [1, 2], [1, 3], [1, 4], [1, 5], [2, 2]),
+  garden: [...rectCells(0, 2, 6, 8), { row: 3, col: 8 }],
+  shed: cells([4, 0], [4, 1], [4, 2], [5, 0]),
+  sunroom: rectCells(4, 5, 4, 8),
+  bedroom: cells([6, 2], [7, 0], [7, 1], [7, 2], [8, 0], [8, 1], [8, 2]),
   living: rectCells(6, 8, 3, 5),
   kitchen: rectCells(6, 8, 6, 8),
 };
 
-const CASE_006_DUCKS = CATALOGUE_DUCK_POOL.slice(0, 9); // tophat..king
-
-const CASE_006_SOLUTION: SolutionCell[] = [
-  { row: 0, col: 4, duck_id: 'duck_tophat' },    // POND
-  { row: 1, col: 1, duck_id: 'duck_plum' },       // BACKYARD (víctima)
-  { row: 2, col: 7, duck_id: 'duck_chef' },       // GARDEN
-  { row: 3, col: 0, duck_id: 'duck_detective' },  // SHED
-  { row: 4, col: 6, duck_id: 'duck_butler' },     // SUNROOM
-  { row: 5, col: 2, duck_id: 'duck_cowboy' },     // BACKYARD (asesino)
-  { row: 6, col: 8, duck_id: 'duck_witch' },      // KITCHEN
-  { row: 7, col: 3, duck_id: 'duck_pirate' },     // LIVING ROOM
-  { row: 8, col: 5, duck_id: 'duck_king' },       // LIVING ROOM
+const CASE_006_DUCKS = [
+  'duck_tophat',    // A
+  'duck_chef',      // B
+  'duck_witch',     // C, murderer
+  'duck_detective', // D
+  'duck_butler',    // E
+  'duck_cowboy',    // F
+  'duck_pirate',    // G
+  'duck_king',      // H
+  'duck_plum',      // V, victim
 ];
 
+const CASE_006_SOLUTION: SolutionCell[] = [
+  { row: 7, col: 5, duck_id: 'duck_tophat' },    // A - Living Room
+  { row: 4, col: 1, duck_id: 'duck_chef' },      // B - Shed
+  { row: 0, col: 0, duck_id: 'duck_witch' },     // C - Backyard, beside tree
+  { row: 6, col: 2, duck_id: 'duck_detective' }, // D - Bedroom
+  { row: 8, col: 4, duck_id: 'duck_butler' },    // E - Living Room chair
+  { row: 5, col: 6, duck_id: 'duck_cowboy' },    // F - Sunroom carpet
+  { row: 2, col: 8, duck_id: 'duck_pirate' },    // G - Garden
+  { row: 1, col: 3, duck_id: 'duck_king' },      // H - Pond, alone
+  { row: 3, col: 7, duck_id: 'duck_plum' },      // V - Backyard, alone with C
+];
+
+const CASE_006_TREE_CELLS = cells([0, 1], [2, 5]);
+const CASE_006_CARPET_CELLS = cells([5, 5], [5, 6], [7, 2], [8, 2], [7, 6], [7, 7], [8, 6]);
+const CASE_006_CHAIR_CELLS = cells([4, 6], [4, 8], [5, 4], [8, 0], [8, 4]);
+const CASE_006_BESIDE_TREE_CELLS = cells([0, 0], [0, 2], [1, 1], [1, 5], [2, 4], [2, 6], [3, 5]);
+
 const CASE_006_BLOCKED: BoardCell[] = [
-  { row: 0, col: 1 }, { row: 0, col: 8 }, { row: 1, col: 4 }, { row: 1, col: 7 },
-  { row: 2, col: 5 }, { row: 2, col: 6 }, { row: 3, col: 1 }, { row: 4, col: 0 },
-  { row: 3, col: 7 }, { row: 4, col: 7 }, { row: 6, col: 3 }, { row: 6, col: 4 },
-  { row: 8, col: 0 }, { row: 8, col: 7 }, { row: 6, col: 6 },
+  ...CASE_006_TREE_CELLS,
+  { row: 0, col: 4 }, { row: 1, col: 2 }, // lily pads
+  { row: 0, col: 8 }, { row: 2, col: 7 }, { row: 3, col: 0 }, { row: 3, col: 6 }, { row: 6, col: 1 }, // flowers
+  { row: 3, col: 8 }, { row: 4, col: 7 }, { row: 7, col: 1 }, { row: 7, col: 3 }, { row: 7, col: 8 }, { row: 8, col: 8 }, // tables
+  { row: 4, col: 0 }, { row: 6, col: 3 }, { row: 6, col: 5 }, // shelves
+  { row: 6, col: 4 }, { row: 8, col: 7 }, // TV / stove
 ];
 
 const REGION_PALETTE_006: Record<string, string> = {
@@ -474,11 +502,11 @@ export const CASE_006: GameCase = {
   difficulty: 2,
   location: 'Quackwell Manor — jardín trasero',
   story_intro:
-    'Dama Plumetta apareció sin vida en el jardín trasero. Lee la pista de cada sospechoso y encuentra su casilla exacta: cada pato ocupa una sola casilla y nadie comparte fila ni columna. El asesino estuvo a solas con la víctima, en su misma área.',
+    'V apareció sin vida en el jardín trasero. Lee la pista de cada sospechoso y encuentra su casilla exacta: cada pato ocupa una sola casilla y nadie comparte fila ni columna. El asesino estuvo a solas con la víctima, en su misma área.',
   story_resolution:
-    'Todos los caminos llevaban al estanque y al jardín. Sheriff Plumas quedó a solas con Dama Plumetta en el Jardín Trasero.',
+    'C quedó a solas con V en el Jardín Trasero. La reconstrucción encaja fila por fila y columna por columna.',
   suspects: CASE_006_DUCKS,
-  culprit: 'duck_cowboy',
+  culprit: 'duck_witch',
   victim: 'duck_plum',
   board: {
     board_id: 'case_006_board',
@@ -507,17 +535,20 @@ export const CASE_006: GameCase = {
     'Cada sospechoso ocupa una sola casilla; nadie comparte fila ni columna.',
     'El asesino estaba a solas con la víctima, en su misma área.',
   ],
-  logic_clues: [],
+  logic_clues: [
+    'No se pueden ocupar objetos del escenario: árboles, flores, mesas, estantes, sillas, TV, cocina ni nenúfares.',
+    'Junto a significa compartir lado: izquierda, derecha, arriba o abajo; nunca diagonal.',
+  ],
   suspect_clues: [
-    { duck_id: 'duck_tophat', clue: 'Estaba junto al Estanque.', highlight_cells: CASE_006_REGIONS.pond },
-    { duck_id: 'duck_plum', clue: 'La víctima. Estaba a solas con el asesino, en su misma área.', highlight_cells: CASE_006_REGIONS.backyard },
-    { duck_id: 'duck_chef', clue: 'Estaba en el Jardín de Flores.', highlight_cells: CASE_006_REGIONS.garden },
-    { duck_id: 'duck_detective', clue: 'Estaba en el Cobertizo.', highlight_cells: CASE_006_REGIONS.shed },
-    { duck_id: 'duck_butler', clue: 'Estaba en la Galería, al lado de una mesa.', highlight_cells: CASE_006_REGIONS.sunroom },
-    { duck_id: 'duck_cowboy', clue: 'Estaba en el Jardín Trasero.', highlight_cells: CASE_006_REGIONS.backyard },
-    { duck_id: 'duck_witch', clue: 'Estaba en la Cocina.', highlight_cells: CASE_006_REGIONS.kitchen },
-    { duck_id: 'duck_pirate', clue: 'Estaba en el Salón.', highlight_cells: CASE_006_REGIONS.living },
-    { duck_id: 'duck_king', clue: 'Estaba sentado en el Salón.', highlight_cells: CASE_006_REGIONS.living },
+    { duck_id: 'duck_tophat', clue: 'A: estaba con E en el Living Room.', highlight_cells: CASE_006_REGIONS.living },
+    { duck_id: 'duck_chef', clue: 'B: estaba en el Shed.', highlight_cells: CASE_006_REGIONS.shed },
+    { duck_id: 'duck_witch', clue: 'C: estaba junto a un árbol.', highlight_cells: CASE_006_BESIDE_TREE_CELLS },
+    { duck_id: 'duck_detective', clue: 'D: estaba en Bedroom o Sunroom.', highlight_cells: [...CASE_006_REGIONS.bedroom, ...CASE_006_REGIONS.sunroom] },
+    { duck_id: 'duck_butler', clue: 'E: estaba sentada en una silla.', highlight_cells: CASE_006_CHAIR_CELLS },
+    { duck_id: 'duck_cowboy', clue: 'F: estaba sobre una alfombra.', highlight_cells: CASE_006_CARPET_CELLS },
+    { duck_id: 'duck_pirate', clue: 'G: estaba en Garden.', highlight_cells: CASE_006_REGIONS.garden },
+    { duck_id: 'duck_king', clue: 'H: estaba solo en su zona.', highlight_cells: [] },
+    { duck_id: 'duck_plum', clue: 'V: la víctima estaba a solas con el asesino.', highlight_cells: [] },
   ],
   time_target: 720,
   is_premium: false,

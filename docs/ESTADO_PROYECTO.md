@@ -22,7 +22,8 @@ El proyecto se esta moviendo hacia una identidad visual mas premium: pantallas c
 - En el tablero, tocar un personaje solo lo selecciona.
 - Ya no se marca automaticamente la casilla correcta al seleccionar un sospechoso.
 - El jugador debe pensar la posicion y tocar la casilla manualmente.
-- Hay modo `Descartar` con marca `X`.
+- En `murdoku`, tocar una celda con sospechoso activo coloca directamente.
+- La barra de acciones del puzzle quedo reducida a `Deshacer`, `Pista x N` y `Acusar`.
 - Hay boton `Acusar` para enviar la solucion cuando todos los sospechosos estan colocados.
 - Si la solucion es incorrecta, se pierde una vida.
 - Si la solucion es correcta, se completa el caso.
@@ -159,7 +160,7 @@ Genera puzzles deterministas por `seed`:
 
 `puzzleToBoardData(generatedPuzzle, opts?)` -> `BoardData` valido para el juego y para `validateBoardDefinition`. Para `latin` reutiliza las regiones rectangulares del generador; para `murdoku` (o latin de tamano primo) usa un room por fila como fallback. No genera scene objects ni pistas narrativas.
 
-**El Caso Diario ahora es generado.** `getDailyCaseForDate` / `getDailyCase` (en `lib/daily.ts`) ya no rotan un caso fijo de `ALL_CASES`: construyen un `GameCase` determinista por fecha con un puzzle generado en modo `latin` (cuadrado latino de patos: cada pato una vez por fila, columna y sala). Sin pistas narrativas (`logic_clues`/`suspect_clues`/`narrative_clues` vacios) — el panel de pistas del juego solo aparece en modo `murdoku`, asi que se oculta solo. Dificultad sube por ciclos de 7 dias (`getDailyDifficulty(dayNumber)`: dias 1-2 easy, 3-5 medium, 6-7 hard), con `time_target` 420/600/780s. El `case_id` del diario es `daily_<fecha>`; `app/game/[caseId].tsx` lo resuelve via `getDailyCaseForDate()` cuando `?daily=1` (no via `CASE_MAP`). La pantalla de caso resuelto oculta el reveal de culpable/victima en modo `latin`. `getDailyCase` cachea el ultimo caso por fecha (se llama en cada render de varias pantallas). `generateDailyBoard(date?, playMode?)` sigue disponible si solo hace falta el tablero.
+**El Caso Diario ahora es generado.** `getDailyCaseForDate` / `getDailyCase` (en `lib/daily.ts`) ya no rotan un caso fijo de `ALL_CASES`: construyen un `GameCase` determinista por fecha con un puzzle generado en modo `latin` (cuadrado latino de patos: cada pato una vez por fila, columna y sala). Sin pistas narrativas (`logic_clues`/`suspect_clues`/`narrative_clues` vacios) — la tira de pistas del juego solo aparece en modo `murdoku`, asi que se oculta solo. Dificultad sube por ciclos de 7 dias (`getDailyDifficulty(dayNumber)`: dias 1-2 easy, 3-5 medium, 6-7 hard), con `time_target` 420/600/780s. El `case_id` del diario es `daily_<fecha>`; `app/game/[caseId].tsx` lo resuelve via `getDailyCaseForDate()` cuando `?daily=1` (no via `CASE_MAP`). La pantalla de caso resuelto oculta el reveal de culpable/victima en modo `latin`. `getDailyCase` cachea el ultimo caso por fecha (se llama en cada render de varias pantallas). `generateDailyBoard(date?, playMode?)` sigue disponible si solo hace falta el tablero.
 
 Tests: `lib/__tests__/puzzleGenerator.test.ts` + `lib/__tests__/puzzleToBoardData.test.ts` (16 en total, todos pasan con `node --test`). `daily.ts` no se testea desde Node (usa imports relativos sin extension que solo resuelve Metro); se cubre via `npx tsc --noEmit`.
 
@@ -174,33 +175,57 @@ Tests: `lib/__tests__/puzzleGenerator.test.ts` + `lib/__tests__/puzzleToBoardDat
 
 `app/(tabs)/shop.tsx` tiene seccion nueva "Skins de patos" con `SKIN_PACKS` (4 packs: Noir, Neón, Oro, Pirata) y `SkinPackCard` (preview de emojis + acento de color + badge NUEVO). Igual que el resto de la tienda es placeholder ("Próximamente") — NO hay sistema real de skins (ownership/equip/alt-art) todavia; eso es feature aparte (`feature/skins`).
 
+### Monetizacion preparada
+
+No hay SDK de AdMob ni compras reales integradas todavia. Se agrego `lib/monetization.ts` como contrato central para eventos y placements:
+
+- Recompensados previstos: `basic_hint`, `reveal_hint`, `continue_after_game_over`. La UI visible ahora solo expone `basic_hint` y continuar; `reveal_hint` queda reservado como placement futuro.
+- IAP previsto: `league_pass` con `grantsGameplayPower: false` para mantenerlo no pay-to-win.
+- `subscribeMonetizationEvents(...)` permite que un futuro adaptador de AdMob/IAP escuche eventos sin reescribir la logica de juego.
+
+Eventos ya emitidos desde `app/game/[caseId].tsx`:
+
+- `need_hint` cuando el jugador pide pista y no hay inventario o no hay objetivo.
+- `hint_used` cuando consume una pista del inventario.
+- `life_lost` al fallar una colocacion o acusacion.
+- `continue_offer_shown`, `continue_paid_coins` y `continue_denied` en el modal de game over.
+- `level_complete` al resolver un caso y otorgar recompensas.
+
+La Home emite `league_pass_opportunity` al tocar la card de liga. `stores/userStore.ts` tiene `hasLeaguePass` y `setLeaguePassOwned(...)` como entitlement local placeholder; todavia no hay validacion de recibos ni servidor.
+
 ### Aspecto del tablero (regiones irregulares + frame)
 
 El generador de puzzles `latin` ahora produce **regiones irregulares tipo jigsaw** (areas contiguas de N celdas, como el Murdoku real), no cajas rectangulares. Opcion `regionStyle: 'jigsaw' | 'box'` en `generatePuzzle` (default `jigsaw`; `box` necesita que N factorice). Opcion `roomNames` para nombrar las areas; los casos del catalogo y el diario pasan nombres tematicos. `puzzleToBoardData` admite `decorations: number` para esparcir objetos de escena decorativos deterministas (hash del `board_id`) en celdas vacias — solo visual, no afecta el juego; catalogo y diario usan 7.
 
 Polish visual del tablero:
-- `components/board/MansionBoard.tsx`: el tablero va sobre un "mat" oscuro redondeado con sombra; bordes de region a 4px.
-- `components/board/RoomCell.tsx`: objetos de escena con emoji (🛋️ 🪑 🪴 📚 🟫) mas grandes y visibles.
-- `components/board/RoomLabel.tsx`: el nombre del area es una pildora blanca redondeada anclada cerca del centroide de la region (con borde del color del area).
-- `app/game/[caseId].tsx`: banner de reglas para modo `latin` ("cada sospechoso una vez por fila, columna y area").
+- `app/game/[caseId].tsx`: fondo navy profundo `#0F0F23`, HUD oscuro, tira compacta amber para pistas generales y barra inferior reducida.
+- `components/board/MansionBoard.tsx`: el tablero va sobre un "mat" navy; cada region usa overlay suave y borde de su propio color.
+- `components/board/RoomCell.tsx`: highlights, errores y celdas fijas usan overlays oscuros/semitransparentes para no romper la atmosfera.
+- `components/board/RoomLabel.tsx`: el nombre del area es una pildora oscura anclada cerca del centroide de la region.
+- `components/board/DuckSelector.tsx`: sospechosos primero, acciones despues; tiles con avatar, color propio y badge de letra.
+- `app/game/[caseId].tsx`: banner de reglas para modo `latin` compacto con borde amber.
 
 Ajustes tras feedback de capturas (las celdas se veian oscuras/embarradas y los puzzles muy llenos):
-- `MansionBoard.tsx`: el `board` ahora tiene fondo claro tipo papel (`#F3F1E9`) DETRAS de las celdas semitransparentes — antes el mat oscuro hacia que `rgba(pastel, 0.3)` se viera oscuro. El mat sigue oscuro como marco.
+- `MansionBoard.tsx`: el `board` vuelve a fondo navy, pero las regiones bajan alpha y los bordes toman el color de cada zona para agrupar sin ruido.
 - Menos pistas reveladas en `latin`: `DIFFICULTY_GIVEN_RATIO` bajado a easy 0.42 / medium 0.32 / hard 0.22 (antes 0.56/0.42/0.30). 6x6 da ~15/12/8 givens.
 - Menos decoraciones: casos del catalogo `decorations: 3`, diario `2` (antes 7).
 - `RoomCell.tsx`: objetos de escena mas pequenos y tenues (`cellSize*0.42`, opacity 0.5); marca X de celda no disponible mas pequena y gris (antes X roja grande).
 
-PENDIENTE PROBAR EN MOVIL/EXPO: no se ha verificado en dispositivo nada de esto — flujo Home -> Daily -> Game -> Resultado, casos nuevos del catalogo y su detalle, regiones jigsaw, pildoras de area, decoraciones, mat oscuro + board claro, banner de reglas, ni la seccion de skins. Hay que `npx expo start --clear` y comprobarlo todo. Verificado solo: `npx tsc --noEmit` exit 0, `node --test` 21/21, y un script que confirma que los 4 casos generados + el diario pasan `validateBoardDefinition` (no son puzzles invalidos — lo que se veia mal era presentacion).
+PENDIENTE PROBAR EN MOVIL/EXPO: no se ha verificado en dispositivo nada de esto — flujo Home -> Daily -> Game -> Resultado, casos nuevos del catalogo y su detalle, regiones jigsaw, pildoras de area, decoraciones, mat oscuro/navy, banner de reglas, ni la seccion de skins. Hay que `npx expo start --clear` y comprobarlo todo. Verificado solo: `npx tsc --noEmit` exit 0, `node --test` 21/21, y un script que confirma que los 4 casos generados + el diario pasan `validateBoardDefinition` (no son puzzles invalidos — lo que se veia mal era presentacion).
 
 ### Tablero con imagen de escenario
 
 `BoardData` admite `background_image?: ImageSourcePropType`. Si esta puesta, `MansionBoard` la pinta de fondo (stretch a `boardWidth x boardHeight`) y NO dibuja colores de region, bordes gruesos, `RoomLabel` ni iconos de objeto (todo eso ya viene en la imagen); las celdas quedan transparentes, solo se dibuja la rejilla fina, patos, highlights y X.
 
-`CASE_006` ("El Jardín de Atrás") es el primer caso de este tipo: murdoku 9x9 sobre `assets/escenario1.png`. PRIMERA PASADA — las regiones (8: Jardín Trasero, Estanque, Jardín de Flores, Cobertizo, Galería, Dormitorio, Salón, Cocina) y las `blocked_cells` (objetos = no ocupable) son una APROXIMACION a la lamina; la solucion (permutacion 9x9) y las `suspect_clues` son auto-consistentes con esa aproximacion. Hay que mirar el escenario en el movil y afinar que celdas tienen objetos / donde van exactamente las regiones. Reusa 9 patos existentes (tophat..king); victima `duck_plum`, asesino `duck_cowboy`. La pantalla de juego ahora muestra `narrative_clues` en el panel de pistas si `logic_clues` esta vacio; las `suspect_clues` siguen apareciendo en `DuckSelector` al enfocar un sospechoso.
+`CASE_006` ("El Jardín de Atrás") es el primer caso de este tipo: murdoku 9x9 sobre `assets/escenario1.png`. Ahora modela la logica de la lamina "The Backyard Garden": pistas A-H/V, objetos no ocupables, regiones irregulares del escenario y solucion final de la pagina de resolucion. La victima es `duck_plum` (V) y el asesino es `duck_witch` (C).
+
+Convencion de pistas para casos futuros:
+- `narrative_clues` y `logic_clues`: solo pistas generales del escenario/reglas, no pistas de un personaje concreto. Se muestran arriba en la tira compacta sin titulo.
+- `suspect_clues`: pistas de personaje. Se muestran encima del selector al elegir ese sospechoso y pueden resaltar candidatos amplios (`highlight_cells`) sin revelar la celda exacta.
 
 El catalogo ahora tiene 6 casos (`CASE_001`..`CASE_006`).
 
-PENDIENTE / FOLLOW-UP visual: afinar `CASE_006` contra la lamina (celdas de objetos, regiones); portraits de sospechosos con burbujas de pista alrededor del tablero (estilo lamina murdoku.com); mas escenarios pre-renderizados.
+PENDIENTE / FOLLOW-UP visual: portraits de sospechosos con burbujas de pista alrededor del tablero (estilo lamina murdoku.com); mas escenarios pre-renderizados.
 
 ### Estado del juego
 
@@ -212,8 +237,8 @@ Controla:
 - tablero actual
 - historial para deshacer
 - seleccion de celda
-- modo notas
-- modo descartar
+- candidatos/notas internas
+- marcas `X` internas heredadas
 - colocacion de sospechosos
 - envio de solucion
 - vidas
@@ -390,7 +415,7 @@ Owner sugerido: quien toque tablero y feedback.
 Apoyo/reviewer:
 
 - Verificar reglas Murdoku despues de cada ajuste visual.
-- Probar acusar, vidas, pistas, descartar y deshacer.
+- Probar acusar, vidas, pistas, deshacer y tap directo para colocar.
 - Revisar que los patos no se salgan de celdas.
 
 Archivos:

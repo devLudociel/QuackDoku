@@ -15,6 +15,7 @@ export interface UserStore {
   totalPoints: number;
   perfectCases: number;
   bestTime: number | null;
+  hasLeaguePass: boolean;
 
   // Actions
   addCoins: (amount: number) => void;
@@ -24,6 +25,7 @@ export interface UserStore {
   useClue: () => boolean;
   completeCaseReward: (coins: number, xp: number, clues: number, isPerfect: boolean, timeSeconds: number) => void;
   setFavoriteDuck: (duckId: string) => void;
+  setLeaguePassOwned: (owned: boolean) => void;
   checkStreak: () => void;
 }
 
@@ -70,6 +72,7 @@ export const useUserStore = create<UserStore>((set, get) => ({
   totalPoints: 0,
   perfectCases: 0,
   bestTime: null,
+  hasLeaguePass: false,
 
   addCoins: (amount) => set((s) => ({ coins: s.coins + amount })),
 
@@ -118,6 +121,8 @@ export const useUserStore = create<UserStore>((set, get) => ({
   },
 
   setFavoriteDuck: (duckId) => set({ favoriteDuck: duckId }),
+
+  setLeaguePassOwned: (owned) => set({ hasLeaguePass: owned }),
 
   checkStreak: () => {
     const today = new Date().toDateString();

@@ -28,9 +28,18 @@ export interface BoardScreenLayout {
   cellSize: number;
 }
 
-const BOARD_PADDING = 12;
-const MAT_PADDING = 8;
+const BOARD_PADDING = 6;
+const MAT_PADDING = 4;
 const MIN_CELL_SIZE = 26;
+
+function withAlpha(color: string, alpha: number): string {
+  const rgba = color.match(/rgba?\(([^)]+)\)/);
+  if (!rgba) return color;
+
+  const [r, g, b] = rgba[1].split(',').map((part) => part.trim());
+  if (!r || !g || !b) return color;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export default function MansionBoard({
   board,
@@ -73,7 +82,17 @@ export default function MansionBoard({
     const lookup: Record<string, string> = {};
     for (const room of board.rooms) {
       for (const cell of room.cells) {
-        lookup[`${cell.row},${cell.col}`] = room.room_color;
+        lookup[`${cell.row},${cell.col}`] = withAlpha(room.room_color, 0.18);
+      }
+    }
+    return lookup;
+  }, [board]);
+
+  const roomBorderColorLookup = useMemo(() => {
+    const lookup: Record<string, string> = {};
+    for (const room of board.rooms) {
+      for (const cell of room.cells) {
+        lookup[`${cell.row},${cell.col}`] = withAlpha(room.room_color, 0.72);
       }
     }
     return lookup;
@@ -151,6 +170,7 @@ export default function MansionBoard({
             const showHint = hintCells.has(key);
             const showBlocked = blockedCells.has(key);
             const roomColor = hasBackgroundImage ? 'transparent' : roomColorLookup[key] ?? 'rgba(200,200,200,0.2)';
+            const roomBorderColor = hasBackgroundImage ? 'transparent' : roomBorderColorLookup[key] ?? 'rgba(255,255,255,0.28)';
             const sceneObject = hasBackgroundImage ? null : sceneObjectLookup[key] ?? null;
 
             return (
@@ -167,6 +187,7 @@ export default function MansionBoard({
                   col={col}
                   state={cellState}
                   roomColor={roomColor}
+                  roomBorderColor={roomBorderColor}
                   isSelected={isSelected}
                   borderTop={hasBackgroundImage ? false : isBorderThick(row, col, 'top')}
                   borderRight={hasBackgroundImage ? false : isBorderThick(row, col, 'right')}
@@ -212,9 +233,9 @@ const styles = StyleSheet.create({
   mat: {
     padding: MAT_PADDING,
     borderRadius: 18,
-    backgroundColor: '#15152E',
+    backgroundColor: '#0F0F23',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,199,0,0.20)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
@@ -223,7 +244,7 @@ const styles = StyleSheet.create({
   },
   board: {
     position: 'relative',
-    backgroundColor: '#F3F1E9',
+    backgroundColor: '#0F0F23',
     borderRadius: 6,
     overflow: 'visible',
   },

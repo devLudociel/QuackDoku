@@ -31,6 +31,9 @@ const en = {
   'profile.dailyReminderDisabled': 'Off',
   'profile.dailyReminderOn': 'We will remind you each day to play the daily case.',
   'profile.dailyReminderOff': 'Daily reminder disabled.',
+  'profile.analytics': 'Analytics',
+  'profile.analyticsEnabled': 'On',
+  'profile.analyticsDisabled': 'Off',
 
   'cases.title': '📁 Cases',
   'cases.available': '{count} case(s) available',

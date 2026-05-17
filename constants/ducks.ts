@@ -5,6 +5,15 @@ export type UnlockMethod = 'default' | 'level' | 'event' | 'purchase' | 'gacha';
 
 const duckTophatAsset = require('../assets/duck_tophat.png') as ImageSourcePropType;
 const duckPlumAsset = require('../assets/duck_plum.png') as ImageSourcePropType;
+const duckChefAsset = require('../assets/duck_chef.png') as ImageSourcePropType;
+const duckDetectiveAsset = require('../assets/duck_detective.png') as ImageSourcePropType;
+const duckButlerAsset = require('../assets/duck_butler.png') as ImageSourcePropType;
+const duckWitchAsset = require('../assets/duck_witch.png') as ImageSourcePropType;
+const duckPirateAsset = require('../assets/duck_pirate.png') as ImageSourcePropType;
+const duckKingAsset = require('../assets/duck_king.png') as ImageSourcePropType;
+const duckNinjaAsset = require('../assets/duck_ninja.png') as ImageSourcePropType;
+const duckRobotAsset = require('../assets/duck_robot.png') as ImageSourcePropType;
+const duckCowboyAsset = require('../assets/duck_cowboy.png') as ImageSourcePropType;
 
 export interface Duck {
   duck_id: string;
@@ -58,6 +67,7 @@ export const DUCKS: Duck[] = [
     unlock_level: null,
     lore: 'Cocinero de renombre, pero sus deudas de juego son peligrosas.',
     emoji: '👨‍🍳',
+    asset: duckChefAsset,
   },
   {
     duck_id: 'duck_detective',
@@ -70,6 +80,7 @@ export const DUCKS: Duck[] = [
     unlock_level: 3,
     lore: 'El mejor detective de Quackwell. O eso dice él.',
     emoji: '🔍',
+    asset: duckDetectiveAsset,
   },
   {
     duck_id: 'duck_butler',
@@ -82,6 +93,7 @@ export const DUCKS: Duck[] = [
     unlock_level: 5,
     lore: 'El mayordomo sabe todos los secretos de la mansión.',
     emoji: '🧐',
+    asset: duckButlerAsset,
   },
   {
     duck_id: 'duck_witch',
@@ -94,6 +106,7 @@ export const DUCKS: Duck[] = [
     unlock_level: 10,
     lore: 'Sus pociones son legendarias... y sus maldiciones también.',
     emoji: '🧙‍♀️',
+    asset: duckWitchAsset,
   },
   {
     duck_id: 'duck_pirate',
@@ -106,6 +119,7 @@ export const DUCKS: Duck[] = [
     unlock_level: 15,
     lore: 'Surcó los mares de Quacklandia antes de retirarse al crimen.',
     emoji: '🏴‍☠️',
+    asset: duckPirateAsset,
   },
   {
     duck_id: 'duck_king',
@@ -118,6 +132,7 @@ export const DUCKS: Duck[] = [
     unlock_level: 20,
     lore: 'Monarca de los patos. Absolutamente nadie le cuestiona.',
     emoji: '👑',
+    asset: duckKingAsset,
   },
   {
     duck_id: 'duck_ninja',
@@ -130,6 +145,7 @@ export const DUCKS: Duck[] = [
     unlock_level: null,
     lore: 'Nadie sabe su nombre real. Aparece y desaparece sin dejar rastro.',
     emoji: '🥷',
+    asset: duckNinjaAsset,
   },
   {
     duck_id: 'duck_robot',
@@ -142,6 +158,7 @@ export const DUCKS: Duck[] = [
     unlock_level: null,
     lore: 'Inteligencia artificial. Dice que no tiene emociones. Miente.',
     emoji: '🤖',
+    asset: duckRobotAsset,
   },
   {
     duck_id: 'duck_cowboy',
@@ -154,6 +171,7 @@ export const DUCKS: Duck[] = [
     unlock_level: 2,
     lore: 'La ley del Lejano Quackeste. Siempre atrapa a su pato.',
     emoji: '🤠',
+    asset: duckCowboyAsset,
   },
   {
     duck_id: 'duck_witch2',

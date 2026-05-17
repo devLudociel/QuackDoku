@@ -31,6 +31,9 @@ const es = {
   'profile.dailyReminderDisabled': 'Inactivo',
   'profile.dailyReminderOn': 'Te avisaremos cada dia para jugar el caso diario.',
   'profile.dailyReminderOff': 'El recordatorio diario quedo desactivado.',
+  'profile.analytics': 'Analitica',
+  'profile.analyticsEnabled': 'Activa',
+  'profile.analyticsDisabled': 'Inactiva',
 
   'cases.title': '📁 Casos',
   'cases.available': '{count} caso(s) disponibles',

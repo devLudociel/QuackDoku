@@ -23,7 +23,7 @@ Cada `persist(...)` usa `partialize` para guardar solo el estado, no las funcion
 Wrappers nuevos:
 
 - `lib/haptics.ts` — wrapper sobre `expo-haptics` con auto-skip en web, toggle global (`setHapticsEnabled`), y métodos `light/medium/heavy/success/warning/error/selection`.
-- `lib/sound.ts` — wrapper sobre `expo-av`. Registro de SFX vía `registerSfx(event, source)` para evitar que Metro intente bundlear archivos inexistentes. `playSfx(event)` es no-op si el evento no fue registrado.
+- `lib/sound.ts` — wrapper sobre `expo-audio`. Registro de SFX vía `registerSfx(event, source)` para evitar que Metro intente bundlear archivos inexistentes. `playSfx(event)` es no-op si el evento no fue registrado.
 
 Eventos SFX previstos: `place | error | victory | hint | undo | select | tick`.
 
@@ -113,7 +113,7 @@ Eventos cableados:
 - `accusation_submitted` (is_complete, lost_heart).
 - `error_boundary` (message, name).
 
-Archivos nuevos: `lib/telemetry.ts`, `components/ErrorBoundary.tsx`, `.env.example`. `.gitignore` ignora `.env`, `.env.local`, `.sentryclirc`, `sentry.properties`. `app.json` plugins: `expo-router`, `expo-av`, `@sentry/react-native`.
+Archivos nuevos: `lib/telemetry.ts`, `components/ErrorBoundary.tsx`, `.env.example`. `.gitignore` ignora `.env`, `.env.local`, `.sentryclirc`, `sentry.properties`. `app.config.js` plugins: `expo-router`, `expo-audio`, `expo-asset`, `expo-font`, `expo-dev-client`, `expo-notifications`.
 
 PENDIENTE: crear cuentas PostHog + Sentry, copiar `.env.example` a `.env`, rellenar claves reales, hacer dev build con EAS para activar Sentry nativo.
 

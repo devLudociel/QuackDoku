@@ -12,6 +12,7 @@ import { Colors, Fonts, Radius, Shadow, Spacing } from '../../constants/theme';
 import { getLevelProgress, useUserStore } from '../../stores/userStore';
 import { formatCountdown, getDailyCaseForDate } from '../../lib/daily';
 import { useCountdownToMidnight } from '../../hooks/useCountdownToMidnight';
+import { useUtcDateKey } from '../../hooks/useUtcDateKey';
 import { onLeaguePassOpportunity } from '../../lib/monetization';
 
 const ACTIVE_CASES = [
@@ -20,11 +21,19 @@ const ACTIVE_CASES = [
   { title: 'La Herencia', subtitle: 'Mansión Quackwell', status: 'Jugar' },
 ];
 
+const DailyCountdown = React.memo(function DailyCountdown() {
+  const secondsLeft = useCountdownToMidnight();
+  return <Text style={styles.heroTimer}>⏱ {formatCountdown(secondsLeft)}</Text>;
+});
+
 export default function HomeScreen() {
   const { username, level, xp, coins, streakDays, casesCompleted, bestTime, hasLeaguePass } = useUserStore();
   const xpProgress = getLevelProgress(level, xp);
-  const daily = getDailyCaseForDate();
-  const secondsLeft = useCountdownToMidnight();
+  const dailyDateKey = useUtcDateKey();
+  const daily = React.useMemo(
+    () => getDailyCaseForDate(new Date(`${dailyDateKey}T00:00:00.000Z`)),
+    [dailyDateKey],
+  );
 
   const formatBestTime = (seconds: number | null) => {
     if (!seconds) return '3:12';
@@ -75,7 +84,7 @@ export default function HomeScreen() {
           <View style={styles.heroDuck}>
             <Text style={styles.heroDuckEmoji}>🦆</Text>
           </View>
-          <Text style={styles.heroTimer}>⏱ {formatCountdown(secondsLeft)}</Text>
+          <DailyCountdown />
         </Pressable>
 
         <Pressable style={styles.leagueCard} onPress={handleLeaguePress}>

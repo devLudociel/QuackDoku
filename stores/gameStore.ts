@@ -726,9 +726,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
-  continueAfterGameOver: (costCoins) => {
+  continueAfterGameOver: (_costCoins) => {
     // User spends coins to continue — handled by userStore
-    set({ phase: 'playing', hearts: 3 });
+    set({ phase: 'playing', hearts: get().maxHearts });
     return true;
   },
 

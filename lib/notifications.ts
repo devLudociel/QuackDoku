@@ -70,10 +70,10 @@ export async function scheduleDailyReminder(): Promise<boolean> {
       data: { route: '/daily' },
     },
     trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
       hour: 9,
       minute: 0,
-      repeats: true,
-    } as any,
+    },
   });
   track('push_daily_reminder_enabled');
   return true;

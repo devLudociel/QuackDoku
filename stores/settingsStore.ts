@@ -8,9 +8,11 @@ interface SettingsStore {
   installId: string;
   language: LocaleSetting;
   dailyReminderEnabled: boolean;
+  telemetryEnabled: boolean;
   pushToken: string | null;
   setLanguage: (language: LocaleSetting) => void;
   setDailyReminderEnabled: (enabled: boolean) => void;
+  setTelemetryEnabled: (enabled: boolean) => void;
   setPushToken: (token: string | null) => void;
 }
 
@@ -24,10 +26,12 @@ export const useSettingsStore = create<SettingsStore>()(
       installId: createInstallId(),
       language: 'system',
       dailyReminderEnabled: false,
+      telemetryEnabled: true,
       pushToken: null,
 
       setLanguage: (language) => set({ language }),
       setDailyReminderEnabled: (enabled) => set({ dailyReminderEnabled: enabled }),
+      setTelemetryEnabled: (enabled) => set({ telemetryEnabled: enabled }),
       setPushToken: (token) => set({ pushToken: token }),
     }),
     {
@@ -38,6 +42,7 @@ export const useSettingsStore = create<SettingsStore>()(
         installId: state.installId,
         language: state.language,
         dailyReminderEnabled: state.dailyReminderEnabled,
+        telemetryEnabled: state.telemetryEnabled,
         pushToken: state.pushToken,
       }),
     },

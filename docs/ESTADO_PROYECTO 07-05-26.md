@@ -1,5 +1,7 @@
 # Estado del Proyecto QuackDoku
 
+> Snapshot historico del 2026-05-07. Para el estado actual del proyecto, leer `docs/ESTADO_PROYECTO.md`.
+
 Fecha del checkpoint: 2026-05-07
 
 Este documento resume donde va el proyecto para que otro desarrollador, o su Codex, pueda entrar al codigo sin depender del historial de chat.

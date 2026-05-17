@@ -8,8 +8,8 @@ Referencia de cuentas/env vars pendientes: `docs/REQUIRED_ACCOUNTS_AND_KEYS.md`.
 
 - Store assets:
   - Hecho: `assets/icon.png` 1024x1024.
-  - Hecho: `assets/adaptive-icon.png` 1024x1024 configurado en `app.json`.
-  - Hecho: `assets/splash-icon.png` configurado en `app.json`.
+  - Hecho: `assets/adaptive-icon.png` 1024x1024 configurado en `app.config.js`.
+  - Hecho: `assets/splash-icon.png` configurado en `app.config.js`.
   - Falta: screenshots finales de Android/iOS desde build real, no desde web.
   - Falta: copy de store, categoria, rating de edad y notas de privacidad en Play Console/App Store Connect.
 - Privacy policy:

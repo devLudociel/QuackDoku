@@ -20,6 +20,7 @@ export type TelemetryEvent =
   | 'daily_started'
   | 'daily_completed'
   | 'daily_shared'
+  | 'daily_api_failed'
   | 'characters_opened'
   | 'shop_opened'
   | 'profile_opened'
@@ -33,6 +34,8 @@ export type TelemetryEvent =
   | 'push_daily_reminder_disabled'
   | 'iap_revenuecat_ready'
   | 'iap_entitlements_refreshed'
+  | 'telemetry_opt_in'
+  | 'telemetry_opt_out'
   | 'screen_view'
   | 'error_boundary'
   | '$screen'
@@ -63,6 +66,7 @@ let environment = 'development';
 let release: string | undefined;
 let distinctId = `anon_${Math.random().toString(36).slice(2)}_${Date.now().toString(36)}`;
 let superProperties: Record<string, unknown> = {};
+let telemetryEnabled = true;
 const queue: QueuedEvent[] = [];
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 let flushing = false;
@@ -126,7 +130,19 @@ export function setUserContext(traits: Record<string, unknown>): void {
   superProperties = { ...superProperties, ...traits };
 }
 
+export function setTelemetryEnabled(enabled: boolean): void {
+  telemetryEnabled = enabled;
+  if (!enabled) {
+    queue.length = 0;
+    if (flushTimer) {
+      clearTimeout(flushTimer);
+      flushTimer = null;
+    }
+  }
+}
+
 export function track(event: TelemetryEvent, properties?: Record<string, unknown>): void {
+  if (!telemetryEnabled) return;
   if (!posthogApiKey) {
     if (debugMode) console.log('[telemetry] skipped', event);
     return;
@@ -169,7 +185,7 @@ export function captureMessage(message: string, level: 'info' | 'warning' | 'err
 }
 
 export async function flushTelemetry(): Promise<void> {
-  if (!posthogApiKey || flushing || queue.length === 0) return;
+  if (!telemetryEnabled || !posthogApiKey || flushing || queue.length === 0) return;
   if (flushTimer) {
     clearTimeout(flushTimer);
     flushTimer = null;
@@ -179,29 +195,24 @@ export async function flushTelemetry(): Promise<void> {
   const batch = queue.splice(0, queue.length);
 
   try {
-    const responses = await Promise.all(
-      batch.map((item) =>
-        fetch(`${posthogHost}/capture/`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            api_key: posthogApiKey,
-            event: item.event,
+    const response = await fetch(`${posthogHost}/batch/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        api_key: posthogApiKey,
+        batch: batch.map((item) => ({
+          event: item.event,
+          distinct_id: distinctId,
+          properties: {
             distinct_id: distinctId,
-            properties: {
-              distinct_id: distinctId,
-              ...item.properties,
-            },
-            timestamp: item.timestamp,
-          }),
-        })
-      )
-    );
-    if (debugMode) {
-      const failed = responses.filter((response) => !response.ok);
-      if (failed.length > 0) {
-        console.warn('[telemetry] PostHog rejected events', failed.map((response) => response.status));
-      }
+            ...item.properties,
+          },
+          timestamp: item.timestamp,
+        })),
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`PostHog batch rejected with ${response.status}`);
     }
     if (debugMode) console.log('[telemetry] flushed', batch.length);
   } catch (error) {

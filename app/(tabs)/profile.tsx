@@ -17,7 +17,7 @@ import { DUCK_MAP } from '../../constants/ducks';
 import { DUCKS } from '../../constants/ducks';
 import DuckAvatar from '../../components/ui/DuckAvatar';
 import GameAsset from '../../components/ui/GameAsset';
-import { flushTelemetry, track, trackScreen } from '../../lib/telemetry';
+import { flushTelemetry, setTelemetryEnabled as setTelemetryRuntimeEnabled, track, trackScreen } from '../../lib/telemetry';
 import { useI18n } from '../../lib/i18n';
 import { cancelDailyReminder, registerForPushNotifications, scheduleDailyReminder } from '../../lib/notifications';
 import { useSettingsStore } from '../../stores/settingsStore';
@@ -38,7 +38,9 @@ export default function ProfileScreen() {
 
   const { favoriteDuck, unlockedDucks } = useCollectionStore();
   const dailyReminderEnabled = useSettingsStore((state) => state.dailyReminderEnabled);
+  const telemetryEnabled = useSettingsStore((state) => state.telemetryEnabled);
   const setDailyReminderEnabled = useSettingsStore((state) => state.setDailyReminderEnabled);
+  const setTelemetryEnabled = useSettingsStore((state) => state.setTelemetryEnabled);
   const setPushToken = useSettingsStore((state) => state.setPushToken);
   const duck = DUCK_MAP[favoriteDuck];
   const xpProgress = getLevelProgress(level, xp);
@@ -58,7 +60,6 @@ export default function ProfileScreen() {
       };
       trackScreen('profile', properties);
       track('profile_opened', properties);
-      void flushTelemetry();
     }, [casesCompleted, clues, coins, level, perfectCases, streakDays, unlockedDucks.length])
   );
 
@@ -95,6 +96,21 @@ export default function ProfileScreen() {
       t('common.ready'),
       scheduled ? t('profile.dailyReminderOn') : t('profile.dailyReminderOff')
     );
+  };
+
+  const handleTelemetryToggle = (enabled: boolean) => {
+    if (enabled) {
+      setTelemetryEnabled(true);
+      setTelemetryRuntimeEnabled(true);
+      track('telemetry_opt_in');
+      return;
+    }
+
+    track('telemetry_opt_out');
+    void flushTelemetry().finally(() => {
+      setTelemetryRuntimeEnabled(false);
+      setTelemetryEnabled(false);
+    });
   };
 
   const formatTime = (seconds: number | null) => {
@@ -187,6 +203,20 @@ export default function ProfileScreen() {
               onValueChange={handleDailyReminderToggle}
               trackColor={{ false: Colors.grayLight, true: Colors.yellowSoft }}
               thumbColor={dailyReminderEnabled ? Colors.yellow : Colors.grayMuted}
+            />
+          </View>
+          <View style={styles.settingRow}>
+            <View>
+              <Text style={styles.settingLabel}>{t('profile.analytics')}</Text>
+              <Text style={styles.settingSub}>
+                {telemetryEnabled ? t('profile.analyticsEnabled') : t('profile.analyticsDisabled')}
+              </Text>
+            </View>
+            <Switch
+              value={telemetryEnabled}
+              onValueChange={handleTelemetryToggle}
+              trackColor={{ false: Colors.grayLight, true: Colors.yellowSoft }}
+              thumbColor={telemetryEnabled ? Colors.yellow : Colors.grayMuted}
             />
           </View>
         </View>

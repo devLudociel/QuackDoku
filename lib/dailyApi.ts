@@ -1,6 +1,7 @@
 import Constants from 'expo-constants';
 import type { DailyCompletion, DailyLeaderboardEntry } from '../stores/dailyStore';
 import { getDailyCaseForDate } from './daily';
+import { track } from './telemetry';
 
 interface DailyApiConfig {
   apiUrl?: string;
@@ -39,10 +40,14 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T | nul
         ...(init?.headers ?? {}),
       },
     });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      track('daily_api_failed', { path, status: response.status });
+      return null;
+    }
     return (await response.json()) as T;
   } catch (error) {
     if (__DEV__) console.warn('[daily-api] request failed', path, error);
+    track('daily_api_failed', { path, reason: error instanceof Error ? error.message : String(error) });
     return null;
   }
 }
